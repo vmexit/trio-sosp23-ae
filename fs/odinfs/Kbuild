@@ -1,0 +1,21 @@
+SRC_ROOT := .
+
+obj-m      += odinfs.o
+odinfs-objs := $(addprefix $(SRC_ROOT)/solros_lib/, \
+                 solros_ring_buffer.o \
+                 ring_buffer.o)
+
+odinfs-objs += bbuild.o balloc.o dir.o file.o inode.o namei.o super.o \
+	symlink.o ioctl.o pmfs_stats.o journal.o xip.o wprotect.o \
+	pmem_ar_block.o agent.o delegation.o ring.o simple_ring.o \
+	range_lock.o metalog.o pcpu_rwsem.o sufs_spinlock.o
+
+
+ccflags-y += -I$(src)/solros_include
+ccflags-y += -O3 -mtune=native
+EXTRA_CFLAGS += -DRING_BUFFER_CONF_KERNEL \
+		-DRING_BUFFER_CONF_NO_MMAP \
+		-DRING_BUFFER_CONF_NO_DOUBLE_MMAP
+
+#EXTRA_CFLAGS += -DRANGE_LOCK_LIST
+EXTRA_CFLAGS += -DRANGE_LOCK_SEGMENT

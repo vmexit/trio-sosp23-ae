@@ -1,0 +1,10 @@
+*.o
+*.o.cmd
+odinfs/build
+*.ko
+*.mod
+*.mod.c
+*.cmd
+Module.symvers
+modules.order
+parradm/parradm

@@ -1,0 +1,7 @@
+[rand-read-write-50-50-4K]
+new_group
+rw=randrw
+rwmixread=50
+rwmixwrite=50
+size=1g
+bs=4k

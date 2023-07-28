@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+        - linux-gcc
+        - linux-clang
+        - macos
+        - linux-i686-gcc
+        - android
+        include:
+        - build: linux-gcc
+          os: ubuntu-22.04
+          cc: gcc
+        - build: linux-clang
+          os: ubuntu-22.04
+          cc: clang
+        - build: macos
+          os: macos-11
+        - build: linux-i686-gcc
+          os: ubuntu-22.04
+          arch: i686
+        - build: android
+          os: ubuntu-22.04
+          arch: aarch64-linux-android32
+
+    env:
+      CI_TARGET_BUILD: ${{ matrix.build }}
+      CI_TARGET_ARCH: ${{ matrix.arch }}
+      CC: ${{ matrix.cc }}
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+    - name: Install dependencies
+      run: ./ci/actions-install.sh
+    - name: Build
+      run: ./ci/actions-build.sh
+    - name: Smoke test
+      run: ./ci/actions-smoke-test.sh
+    - name: Full test
+      run: ./ci/actions-full-test.sh

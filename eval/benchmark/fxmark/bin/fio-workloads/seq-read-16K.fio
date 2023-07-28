@@ -1,0 +1,5 @@
+[seq-read-16K]
+new_group
+rw=read
+size=1g
+bs=16k

@@ -1,0 +1,5 @@
+[seq-write-2M]
+new_group
+rw=write
+size=1g
+bs=2m

@@ -1,0 +1,96 @@
+[global]
+
+# This defines how many pieces of I/O to submit at once. It defaults to 1 which
+# means that we submit each I/O as soon as it is available, but can be raised to
+# submit bigger batches of I/O at the time. If it is set to 0 the iodepth value
+# will be used.
+iodepth_batch=1
+
+# Invalidate the buffer/page cache parts of the files to be used prior to starting
+# I/O if the platform and file type support it. Defaults to true. This will be
+# ignored if pre_read is also specified for the same job.
+invalidate=1
+
+# depends on direct option, flags are set for pmem_memcpy() call:
+# direct=1 - PMEM_F_MEM_NONTEMPORAL,
+# direct=0 - PMEM_F_MEM_TEMPORAL.
+direct=1
+
+# If writing to a file, fio can verify the file contents after each iteration of
+# the job. Each verification method also implies verification of special header,
+# which is written to the beginning of each block
+verify=0
+
+# sync=1 means that pmem_drain() is executed for each write operation.
+#
+# sync=1
+
+# If true, serialize the file creation for the jobs. This may be handy to avoid
+# interleaving of data files, which may greatly depend on the filesystem used
+# and even the number of processors in the system. Default: true.
+create_serialize=0
+
+# In case of 'scramble_buffers=1', the source buffer
+# is rewritten with a random value every write operation.
+#
+# But when 'scramble_buffers=0' is set, the source buffer isn't
+# rewritten. So it will be likely that the source buffer is in CPU
+# cache and it seems to be high write performance.
+#
+scramble_buffers=0
+
+# Set this job’s memory policy and corresponding NUMA nodes. Format of the
+# arguments:
+#   <mode>[:<nodelist>]
+# mode is one of the following memory policies: default, prefer, bind, interleave
+# or local. For default and local memory policies, no node needs to be specified.
+# For prefer, only one node is allowed. For bind and interleave the nodelist may
+# be as follows: a comma delimited list of numbers, A-B ranges, or all.
+numa_mem_policy=default
+
+# split means that each job will get a unique CPU from the CPU set
+cpus_allowed_policy=split
+
+# To see the final report per-group instead of per-job
+group_reporting=1
+
+thread
+ioengine=sync
+
+# The libpmem engine does IO to files in a DAX-mounted filesystem.
+# The filesystem should be created on a Non-Volatile DIMM (e.g /dev/pmem0)
+# and then mounted with the '-o dax' option.  Note that the engine
+# accesses the underlying NVDIMM directly, bypassing the kernel block
+# layer, so the usual filesystem/disk performance monitoring tools such
+# as iostat will not provide useful data.
+# directory=
+
+# Tell fio to terminate processing after the specified period of time. It can be
+# quite hard to determine for how long a specified job will run, so this
+# parameter is handy to cap the total runtime to a given time. When the unit is
+# omitted, the value is interpreted in seconds.
+# runtime=
+
+# If set, fio will run for the duration of the runtime specified even if the
+# file(s) are completely read or written. It will simply loop over the same
+# workload as many times as the runtime allows.
+# time_based
+
+# Create the specified number of clones of this job. Each clone of job is
+# spawned as an independent thread or process. May be used to setup a larger
+# number of threads/processes doing the same thing. Each thread is reported
+# separately; to see statistics for all clones as a whole, use group_reporting
+# in conjunction with new_group. 
+# numjobs=
+
+# Controls the same options as cpumask, but accepts a textual specification of
+# the permitted CPUs instead and CPUs are indexed from 0. So to use CPUs 0 and 5
+# you would specify cpus_allowed=0,5. This option also allows a range of CPUs to
+# be specified – say you wanted a binding to CPUs 0, 5, and 8 to 15, you would
+# set cpus_allowed=0,5,8-15.
+# cpus_allowed=
+
+# Set this job running on specified NUMA nodes’ CPUs. The arguments allow comma
+# delimited list of cpu numbers, A-B ranges, or all. Note, to enable NUMA
+# options support, fio must be built on a system with libnuma-dev(el) installed.
+# numa_cpu_nodes=

@@ -1,0 +1,5 @@
+[rand-read-8K]
+new_group
+rw=randread
+size=1g
+bs=8k

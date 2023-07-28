@@ -1,0 +1,5 @@
+[seq-write-8K]
+new_group
+rw=write
+size=1g
+bs=8k

@@ -1,0 +1,5 @@
+[rand-read-4K-2M]
+new_group
+rw=randread
+size=1g
+bsrange=4k-2m

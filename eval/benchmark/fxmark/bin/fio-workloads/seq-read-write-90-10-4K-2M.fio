@@ -1,0 +1,7 @@
+[seq-read-write-90-10-4K-2M]
+new_group
+rw=readwrite
+rwmixread=90
+rwmixwrite=10
+size=1g
+bsrange=4k-2m

@@ -1,0 +1,7 @@
+[seq-read-write-50-50-4K-2M]
+new_group
+rw=readwrite
+rwmixread=50
+rwmixwrite=50
+size=1g
+bsrange=4k-2m

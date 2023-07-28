@@ -1,0 +1,5 @@
+[rand-read-4K]
+new_group
+rw=randread
+size=1g
+bs=4k

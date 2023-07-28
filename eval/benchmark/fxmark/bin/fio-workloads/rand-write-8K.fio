@@ -1,0 +1,5 @@
+[rand-write-8K]
+new_group
+rw=randwrite
+size=1g
+bs=8k

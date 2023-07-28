@@ -1,0 +1,5 @@
+[rand-write-32K]
+new_group
+rw=randwrite
+size=1g
+bs=32k
