@@ -63,7 +63,7 @@ set ytics 1
 set key at 2,5.3
 plot \
 "<(sed -n '1,1p' ../data/extra/single-meta.dat)" using ($2/1000/1000):xtic(1) title '' lc rgb C5 fillstyle pattern 4, \
-'' using ($6/1000/1000):xtic(1) title '\strata' lc rgb C2 fillstyle pattern 6, \
+'' using ($3/1000/1000):xtic(1) title '\strata' lc rgb C2 fillstyle pattern 6, \
 '' using ($4/1000/1000):xtic(1) title '' lc rgb C6 fillstyle pattern 3,\
 #nova strata sys
 
@@ -78,6 +78,6 @@ set ytics 0.3
 set key at 3,1.6
 plot \
 "<(sed -n '2,3p' ../data/extra/single-meta.dat)" using ($2/1000/1000):xtic(1) title '' lc rgb C5 fillstyle pattern 4, \
-'' using ($6/1000/1000):xtic(1) title '' lc rgb C2 fillstyle pattern 6, \
+'' using ($3/1000/1000):xtic(1) title '' lc rgb C2 fillstyle pattern 6, \
 '' using ($4/1000/1000):xtic(1) title '\sys' lc rgb C6 fillstyle pattern 3, \
 #nova strata sys

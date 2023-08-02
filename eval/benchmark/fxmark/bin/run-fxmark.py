@@ -957,13 +957,12 @@ class Runner(object):
                             "--rcore", str(int(self.rcore == True))])
             
         elif bin is self.dbench_path:
-            cmd = ' '.join([self.fxmark_run_env(fs, "fio", type, ncore,
+            cmd = ' '.join([self.fxmark_run_env(fs, "dbench", type, ncore,
                                     nsocket, self.DELEGATION_THREADS),
                 bin,
                 "--type", type,
                 "--root", self.test_root,
                 "--fs", fs,
-                "--bench", bench,
                 "--delegation_threads", str(self.DELEGATION_THREADS),
                 "--delegation_sockets", str(self.DELEGATION_SOCKETS),
                 "--delegate", str(int(self.delegate == True))])

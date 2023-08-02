@@ -2,6 +2,7 @@
 
 source common.sh
 source test.sh
+source fs.sh
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
     --fs='^ext4$|^pmfs$|^nova$|^winefs$' \

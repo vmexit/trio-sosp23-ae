@@ -27,9 +27,9 @@ class DBench(object):
         self.delegate = bool(int(delegate_))
 
         if (fs_ == "sufs"):
-            self.bin = DBench.FILEBENCH_SUFS_BIN
+            self.bin = DBench.DBBENCH_SUFS_BIN
         else:
-            self.bin = DBench.FILEBENCH_BIN
+            self.bin = DBench.DBBENCH_BIN
 
     def __del__(self):
         # clean up
@@ -43,8 +43,8 @@ class DBench(object):
         ret = ' '
         core_per_socket = cpupol.CORE_PER_CHIP;
 
-        for i in range(1, int(self.nsocket) + 1):
-            begin = core_per_socket * (i - 1) + int(self.delegation_threads);
+        for i in range(1, int(self.dsockets) + 1):
+            begin = core_per_socket * (i - 1) + int(self.dthreads);
             end = core_per_socket * i - 1;
             if (i > 1):
                 ret = ret + ',';
@@ -83,14 +83,13 @@ class DBench(object):
     def report(self):
 
         item = self.perf_msg.split(';')[0]
-        lat = item.split(':')[1].strip() 
-        tp = 1000000 // lat
-
+        tp = float(item.split(':')[1].strip().split(' ')[0]) / 1000
+       
         profile_name = ""
         profile_data = ""
         # we don't have works for dbench..
-        print("# works/msec %s" % profile_name)
-        print("%s %s" % (str(tp), profile_data))
+        print("# ncpu works/msec %s" % profile_name)
+        print("%s %s %s" % ("1", str(tp), profile_data))
 
 if __name__ == "__main__":
     parser = optparse.OptionParser()

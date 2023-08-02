@@ -100,10 +100,14 @@ class Plotter(object):
                 print("%s %s %s %s" %
                       (d_kv["ncpu"], float(d_kv["write_bandwidth"]),
                        write_50_lat,  write_99_lat), file=out_file)
-        else:
+        elif (type == "fxmark"):
                 print("%s %s" %
                        (d_kv["ncpu"], float(d_kv["works/sec"])),
                       file=out_file)
+        else:
+                print("%s %s" %
+                       (d_kv["ncpu"], float(d_kv["works/msec"])),
+                      file=out_file)  
 
 
 

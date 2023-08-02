@@ -19,6 +19,8 @@ eval mpSetup(2,6)
 # read
 eval mpNext
 unset xlabel
+unset key
+
 set ylabel 'ops/$\mu$s'
 set title  '\dwtl' offset 0,-1
 

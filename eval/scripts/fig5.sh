@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source common.sh
+source fs.sh
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' --fs='^nova$' \
     --workload='^fio_global_seq-read-4K$|^fio_global_seq-read-2M$' \
@@ -52,13 +53,13 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
     --fs='^nova$' \
-    --workload='^MRPL$|^MWCUL$|^MWUL$' \
+    --workload='^MRPL$|^MWCL$|^MWUL$' \
     --ncore="^1$" --iotype='bufferedio' --dthread='0' --dsocket="0" \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$SG_META_LOG_DIR" --log_name="nova-meta.log" --duration=10
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
-    --workload='^MRPL$|^MWCUL$|^MWUL$' \
+    --workload='^MRPL$|^MWCL$|^MWUL$' \
     --ncore="^1$" --iotype='bufferedio' --dthread='0' --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$SG_META_LOG_DIR" --log_name="sufs-meta.log" --duration=10
@@ -78,5 +79,12 @@ do
     $FXMARK_PARSER_PATH/pdata.py --log="$FXMARK_LOG_PATH/$SG_META_LOG_DIR/$i" \
     --type='fxmark' --out="$DATA_PATH/$SG_META_DATA_DIR"
 done
+
+./pextra.py --fio_log="$DATA_PATH/$SG_DATA_DIR" \
+    --fxmark_log="$DATA_PATH/$SG_META_DATA_DIR" \
+    --filebench_log="$DATA_PATH/$FB_SP_DATA_DIR" \
+    --dbench_log="$DATA_PATH/$DB_DATA_DIR" \
+    --out="$DATA_PATH/$EXTRA_DATA_DIR" \
+    --out_table="$FIG_PATH"
 
 echo ""

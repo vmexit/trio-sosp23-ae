@@ -8,6 +8,7 @@ MAX_CPUS=`cat /proc/cpuinfo | grep processor | wc -l`
 MAX_SOCKETS=`cat /proc/cpuinfo  | grep "physical id" | sort -u | wc -l`
 
 DATA_PATH=../data/
+FIG_PATH=../fig/
 
 FB_LOG_DIR=filebench
 FB_DATA_DIR=filebench
@@ -27,5 +28,9 @@ SG_DATA_DIR=sg
 SG_META_LOG_DIR=sg_meta
 SG_META_DATA_DIR=sg_meta
 
+FB_SP_LOG_DIR=filebench_sp
+FB_SP_DATA_DIR=filebench_sp
+
+EXTRA_DATA_DIR=extra
 
 sudo -v 

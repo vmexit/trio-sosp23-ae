@@ -73,28 +73,24 @@ plot \
  using 1:($2/1000) title '\sys' with lp ls odinfs, \
 "../data/filebench/pm-char-array:sufs:filebench_webproxy:bufferedio.dat" \
  using 1:($2/1000) title '\sufs' with lp ls sufs, \
-"../data/filebench/pm-char-array:sufs-kv:filebench_webproxy:bufferedio.dat" \
- using 1:($2/1000) title '\sufs-kv' with lp ls winefs, \
 
 eval mpNext
 set ylabel 'KOps/sec'
 set xlabel '\# threads'
 set title '(d) Varmail' offset 0,-1
 plot \
-"../data/filebench/pmem-local:ext4:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/pmem-local:ext4:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\ext' with lp ls ext, \
-"../data/filebench/pmem-local:pmfs:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/pmem-local:pmfs:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\pmfs' with lp ls pmfs, \
-"../data/filebench/pmem-local:nova:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/pmem-local:nova:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\nova' with lp ls nova, \
-"../data/filebench/pmem-local:winefs:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/pmem-local:winefs:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\winefs' with lp ls winefs, \
-"../data/filebench/dm-stripe:ext4:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/dm-stripe:ext4:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\extr' with lp ls extr, \
-"../data/filebench/pm-array:odinfs:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/pm-array:odinfs:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\odinfs' with lp ls odinfs, \
-"../data/filebench/pm-char-array:sufs:filebench_varmail-fd:bufferedio.dat" \
+"../data/filebench/pm-char-array:sufs:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\sufs' with lp ls sufs, \
-"../data/filebench/pm-char-array:sufs-fd:filebench_varmail-fd:bufferedio.dat" \
- using 1:($2/1000) title '\sufs' with lp ls winefs, \
 

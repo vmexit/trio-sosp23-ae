@@ -257,7 +257,15 @@ class FileBench(object):
         with tempfile.NamedTemporaryFile(delete=False) as self.bench_out:
             cmd = "sudo %s %s %s -f %s" % (env_cmd, taskset_cmd, self.bin,
                                         self.config.name)
-            p = self._exec_cmd(cmd, subprocess.PIPE)
+            
+            p = self._exec_cmd(cmd, subprocess.PIPE)   
+
+            status = p.wait(timeout=600)
+
+            if (status !=0):
+                return 
+
+                
             while True:
                 for l in p.stdout.readlines():
                     self.bench_out.write("#@ ".encode("utf-8"))
@@ -275,8 +283,9 @@ class FileBench(object):
                         idx = l_str.find(FileBench.PERF_STR)
                         if idx != -1:
                             self.perf_msg = l_str[idx+len(FileBench.PERF_STR):]
-                # if not p.poll():
-                #    break
+
+
+
                 if self.workload == "videoserver":
                     if self.video_read_msg and self.video_write_msg:
                         break

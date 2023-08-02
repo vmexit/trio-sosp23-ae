@@ -91,8 +91,15 @@ sufs_libfs_mfs_mnode_init(u8 type, int ino_num, int parent_mnum,
     /* This could happen when another trust group obtains the file */
     if (sufs_libfs_mnode_array[ino_num])
     {
-        sufs_libfs_mnode_file_unmap(sufs_libfs_mnode_array[ino_num]);
-        sufs_libfs_mnode_free(sufs_libfs_mnode_array[ino_num]);
+        /* 
+         * BUG: sometime this code is executed even without trust group, 
+         * comment it for now 
+         */
+
+        /* 
+         * sufs_libfs_mnode_file_unmap(sufs_libfs_mnode_array[ino_num]);
+         * sufs_libfs_mnode_free(sufs_libfs_mnode_array[ino_num]);
+         */
     }
 
     mnode = sufs_libfs_mfs_do_mnode_init(type, ino_num, parent_mnum,

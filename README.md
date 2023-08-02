@@ -193,7 +193,9 @@ $ cd eval/fig
 $ ./fig.sh
 ```
 
-Please check all the ```*.eps``` files numbered according to the figures in the paper.  
+Please check all the ```*.eps``` files numbered according to the figures in the paper.  We do not draw legends in these figures (since we cannot predict where to put them  beforehand.) Please refer to the paper for the legends. 
+
+```Table5.md``` shows Table 5 of the paper (in Markdown format). 
 
 # Validation of the main claims:
 
@@ -209,6 +211,7 @@ Please refer to [here](main-claim.md)
 
 The above problem mostly affects fio. We have attached a pre-built version of all our workloads, including fio, that has the right library initialization order (at least on Ubuntu 20.04). If you encounter the above problem, please use the pre-built version instead. 
 
+4. ArckFS numbers its threads (i.e., the first thread within the process is 0 and the next thread is 1 etc.) based on difference of gettid() and the thread id of the first thread. (With the current Linux, there seems to be no good way to number threads.). If the system is constantly creating a large number of proceses/threads in the background (e.g., running k8s services), ArckFS may panic. A small number of background processes are fine. 
 
 # Authors
 

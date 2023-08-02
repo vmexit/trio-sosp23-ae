@@ -31,7 +31,7 @@ using ($2/1000):xtic(1) title '\ext' lc rgb C3 fillstyle pattern 1, \
 '' using ($6/1000):xtic(1) title '\extr' lc rgb C2 fillstyle pattern 5, \
 '' using ($7/1000):xtic(1) title '' lc rgb C1 fillstyle pattern 7, \
 '' using ($8/1000):xtic(1) title '' lc rgb C6 fillstyle pattern 3, \
-'' using ($9/1000):xtic(1) title 'FPFS' lc rgb C5 fillstyle pattern 9, \
+'' using ($10/1000):xtic(1) title 'FPFS' lc rgb C5 fillstyle pattern 9, \
 
 
 eval mpNext
@@ -51,4 +51,4 @@ using ($2/1000):xtic(1) title '' lc rgb C3 fillstyle pattern 1, \
 '' using ($6/1000):xtic(1) title '' lc rgb C2 fillstyle pattern 5, \
 '' using ($7/1000):xtic(1) title '\odinfs' lc rgb C1 fillstyle pattern 7, \
 '' using ($8/1000):xtic(1) title '\sys' lc rgb C6 fillstyle pattern 3, \
-'' using ($9/1000):xtic(1) title 'KVFS' lc rgb C6 fillstyle pattern 10, \
+'' using ($9/1000):xtic(1) title 'KVFS' lc rgb C6 fillstyle pattern 10, 
