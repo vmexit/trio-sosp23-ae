@@ -1,10 +1,11 @@
 *.o
+*.so
 *.o.cmd
-odinfs/build
+/odinfs/build
 *.ko
 *.mod
 *.mod.c
 *.cmd
 Module.symvers
 modules.order
-parradm/parradm
+/parradm/parradm

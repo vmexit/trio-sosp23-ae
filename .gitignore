@@ -3,5 +3,4 @@
 .settings
 .pydevproject
 .vscode
-install
-
+/install/

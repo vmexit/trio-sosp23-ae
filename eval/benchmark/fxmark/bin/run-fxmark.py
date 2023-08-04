@@ -12,6 +12,8 @@ import time
 import random
 import re
 import optparse
+import psutil
+import strata
 
 CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 FXMARK_DIR = os.path.dirname(CUR_DIR)
@@ -39,6 +41,7 @@ class Runner(object):
     HDDDEV = "/dev/sdX"
     SSDDEV = "/dev/sdY"
     PMEMDEV = "/dev/pmem0"
+    PMEMCHAR = "/dev/dax0.0"
     DMSTRIPEDEV = "/dev/mapper/dm-stripe"
     PMARRAYDEV = "/dev/pmem_ar0"
     PMARRAYCHARDEV = "/dev/supremefs"
@@ -74,6 +77,7 @@ class Runner(object):
             "nvme",
             "mem",
             "pmem-local",
+            "pm-char",
             "pmem-remote-1-hop",
             "pmem-remote-2-hop",
             "dm-stripe",
@@ -91,7 +95,7 @@ class Runner(object):
             "f2fs",
             "nova",
             "splitfs",
-            "assise",
+            "strata",
             "pmfs",
             "ext2",
             "ext3",
@@ -112,6 +116,16 @@ class Runner(object):
                           '/dev/pmem4', '/dev/pmem5', '/dev/pmem6', '/dev/pmem7']
         self.PARRADM_BIN = os.path.join("parradm")
         self.SUFS_INIT_BIN = os.path.join("init-sufs")
+
+        self.STRATA_INIT_BIN = os.path.join("mkfs.mlfs")
+        self.STRATA_LD_LIB_PATH = "%s:%s" % (
+            os.path.normpath(os.path.join(CUR_DIR, "strata_build")), 
+            os.path.normpath(os.path.join(CUR_DIR, "nvml_lib")))
+        self.STRATA_KFS_PRELOAD = (
+            os.path.normpath(os.path.join(CUR_DIR, "libjemalloc.so.2")))
+        self.STRATA_KFS_BIN = (
+            os.path.normpath(os.path.join(CUR_DIR, "strata_kfs")))
+
         # make sure these pmem are one hop from each other
         self.PMEM_STRIPE_CONFIGS = {
                 1: ["/dev/pmem0"],
@@ -272,7 +286,7 @@ class Runner(object):
             "reiserfs": self.mount_anyfs,
             "nova": self.mount_nova,
             "splitfs": self.mount_splitfs,
-            "assise": self.mount_assise,
+            "strata": self.mount_strata,
             "pmfs": self.mount_pmfs,
             "winefs" : self.mount_winefs,
             "odinfs": self.mount_odinfs,
@@ -301,6 +315,7 @@ class Runner(object):
             "ssd": self.init_ssd_disk,
             "hdd": self.init_hdd_disk,
             "pmem-local": self.init_pmem_disk,
+            "pm-char" : self.init_pmem_char,
             "dm-stripe": self.init_dm_stripe_disk,
             "pm-array": self.init_pm_array,
             "pm-char-array": self.init_pm_devdax_array,
@@ -433,10 +448,15 @@ class Runner(object):
         ncores.sort()
         return ncores
 
-    def exec_cmd(self, cmd, out=None):
-        print(cmd)
-        p = subprocess.Popen(cmd, shell=True, stdout=out, stderr=out)
-        p.wait()
+    def exec_cmd(self, cmd, out=None, wait=True, timeout=0, fn=None):
+        p = subprocess.Popen(cmd, shell=True, stdout=out, stderr=out, 
+                             preexec_fn=fn)
+        if wait:
+            p.wait()
+        else:
+            time.sleep(timeout)
+            p.poll()
+
         return p
 
     def keep_sudo(self):
@@ -484,8 +504,11 @@ class Runner(object):
         self.keep_sudo()
         self.drop_caches()
 
-    def post_work(self):
+    def post_work(self, fs):
         self.keep_sudo()
+
+        if (fs == "strata"):
+            self.umount_strata()
 
     def unset_loopdev(self):
         self.exec_cmd(' '.join(["sudo", "losetup", "-d", Runner.LOOPDEV]),
@@ -549,6 +572,10 @@ class Runner(object):
     def init_pmem_disk(self):
         self.init_pm(1, "fsdax")
         return (os.path.exists(Runner.PMEMDEV), Runner.PMEMDEV)
+    
+    def init_pmem_char(self):
+        self.init_pm(1, "devdax")
+        return (os.path.exists(Runner.PMEMCHAR), Runner.PMEMCHAR)
 
     def init_dm_stripe_disk(self):
         self.init_pm(self.pmem_dm_stripe_num, "fsdax")
@@ -601,6 +628,7 @@ class Runner(object):
     def init_hdd_disk(self):
         return (os.path.exists(Runner.HDDDEV), Runner.HDDDEV)
 
+
     def init_pm_devdax_array(self):
         self.init_pm(self.DELEGATION_SOCKETS, "devdax")
         return (os.path.exists(Runner.PMARRAYCHARDEV), Runner.PMARRAYCHARDEV)
@@ -634,7 +662,24 @@ class Runner(object):
             return False
         return True
 
-    def mount_assise(self, media, fs, mnt_path):
+    def mount_strata(self, media, fs, mnt_path):
+        (rc, dev_path) = self.init_media(media)
+        if not rc:
+            return False
+
+        p = self.exec_cmd("sudo numactl -N0 -m0 " + self.STRATA_INIT_BIN + " 1")
+        if p.returncode != 0:
+            return False
+        
+        p = self.exec_cmd(("sudo LD_LIBRARY_PATH=%s LD_PRELOAD=%s MLFS_PROFILE=1 "
+                           "numactl -N0 -m0 %s") 
+                          % (self.STRATA_LD_LIB_PATH, self.STRATA_KFS_PRELOAD, 
+                            self.STRATA_KFS_BIN), wait=False, timeout=5)
+        
+        self.strata_kfs = p
+        if p.returncode != None and p.returncode != 0:
+            return False
+        
         return True
 
     def mount_splitfs(self, media, fs, mnt_path):
@@ -741,12 +786,27 @@ class Runner(object):
 
         return True
 
+    def umount_strata(self):
+        process = psutil.Process(self.strata_kfs.pid)
+        for proc in process.children(recursive=True):
+            try:
+                self.exec_cmd("sudo kill -9 %s" % (str(proc.pid)))
+            except:
+                pass
+
+        try:
+            self.exec_cmd("sudo kill -9 %s" % (str(process.pid)))
+        except:
+            pass
+        
+        return True
+
     def mount(self, media, fs, mnt_path):
         mount_fn = self.HOWTO_MOUNT.get(fs, None)
         if not mount_fn:
             return False
 
-        if fs != "sufs" and fs != "sufs-kv" and fs != "sufs-fd":
+        if fs != "sufs" and fs != "sufs-kv" and fs != "sufs-fd" and fs != "strata":
             self.umount(mnt_path)
             self.exec_cmd("mkdir -p " + mnt_path, self.dev_null)
 
@@ -798,20 +858,9 @@ class Runner(object):
         env = ' '.join(["PERFMON_LEVEL=%s" % self.PERFMON_LEVEL,
                         "PERFMON_LDIR=%s" % self.log_dir,
                         "PERFMON_LFILE=%s" % self.perfmon_log])
-
-        # FIXME: add check to verify these files exist
-        if fs == "splitfs":
-            self.check_path(self.LD_LIBRARY_PATH)
-            self.check_path(self.NVP_TREE_FILE)
-            self.check_path(self.LD_PRELOAD)
-            fs_env = ' '.join(["LD_LIBRARY_PATH=%s" % self.LD_LIBRARY_PATH,
-                               "NVP_TREE_FILE=%s" % self.NVP_TREE_FILE,
-                               "LD_PRELOAD=%s" % self.LD_PRELOAD])
-            env = env + ' ' + fs_env
-        if fs == "assise":
-            fs_env = ' '.join(
-                ["LD_PRELOAD=../assise/libfs/build/libmlfs.so", "MLFS_PROFILE=1"])
-
+        
+        fs_env = ' '
+        
         if fs == "sufs":
             if bench == "fxmark":
                 if type == "MWRL" or type == "MWRM" or type == "MWCL" or type == "MWCM":
@@ -824,10 +873,13 @@ class Runner(object):
                                 "sufs_alloc_numa=%s" % node,
                                 "sufs_init_alloc_size=%s" % "65536",
                                 "sufs_alloc_pin_cpu=%s" % 0])
+        elif fs == "strata":
+            if bench == "fxmark":
+                    fs_env = ("LD_PRELOAD=%s" % 
+                              (os.path.normpath(os.path.join(CUR_DIR, strata.lib))))
 
-                    env = env + ' ' + fs_env
 
-
+        env = env + ' ' + fs_env
         return env
 
     def get_bin_type(self, bench):
@@ -897,7 +949,7 @@ class Runner(object):
         if bin is self.fxmark_path:
             cmd = ' '.join([self.fxmark_run_env(fs, "fxmark", type, ncore, nsocket,
                                                 self.DELEGATION_THREADS),
-                            "sudo" if fs == "assise" else "",
+                            "sudo" if fs == "strata" else "",
                             bin,
                             "--type", type,
                             "--ncore", str(ncore),
@@ -987,8 +1039,8 @@ class Runner(object):
     def setup_root_and_bin(self, fs):
         if fs == "splitfs":
             self.test_root = "/mnt/pmem_emul"
-        elif fs == "assise":
-            self.test_root = "/mlfs"
+        elif fs == "strata":
+            self.test_root = "/mlfs/"
         elif fs == "sufs" or fs == "sufs-kv" or fs == "sufs-fd":
             self.test_root = "/sufs/"
 
@@ -1031,8 +1083,9 @@ class Runner(object):
                     self.log("## %s:%s:%s:%s:%s" % (media, fs, bench, nfg, dio))
                 self.pre_work()
                 self.fxmark(media, fs, bench, ncore, nsocket, nfg, nbg, dio)
-                self.post_work()
+                self.post_work(fs)
             self.log("### NUM_TEST_CONF  = %d" % (cnt + 1))
+
         finally:
             signal.signal(signal.SIGINT, catch_ctrl_C)
             self.log_end()
@@ -1044,6 +1097,8 @@ class Runner(object):
                 self.umount(self.test_root)
                 cmd = "sudo %s delete" % self.PARRADM_BIN
                 self.exec_cmd(cmd, self.dev_null)
+            elif self.fs == "strata":
+                self.umount_strata()
             else:
                 self.umount(self.test_root)
 

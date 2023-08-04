@@ -1,0 +1,7 @@
+ignore:
+  - utils/check_license/check-license.c
+  - src/cpp_compile_mock.c
+  - src/cpp_compile_test.cc
+  - examples/icap.c
+  - examples/fork_ban.c
+  - test/

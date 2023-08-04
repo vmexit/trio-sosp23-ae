@@ -13,6 +13,7 @@ import re
 import io
 from os.path import join
 import cpupol
+import strata
 
 CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -28,6 +29,7 @@ CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 # bin/fio-workloads directory. The script then appends the root directory of the
 # device, and merges the two .fio files together, and run the benchmark.
 class Fio(object):
+    PERF_STR = "fio-"
     WORKLOAD_DIR = os.path.normpath(os.path.join(CUR_DIR, "fio-workloads"))
     CREATE_FILE = os.path.normpath(os.path.join(CUR_DIR, "create-file"))
     CREATE_FILE_SUFS = os.path.normpath(os.path.join(CUR_DIR, "create-file-sufs"))
@@ -159,6 +161,11 @@ class Fio(object):
                 for delegation_thread in range(self.delegation_threads):
                     self.seq_cores.remove(socket * cpupol.CORE_PER_CHIP + delegation_thread)
 
+        self.env=""
+        if (self.fs == "strata"):
+            self.env = ("LD_PRELOAD=%s" % 
+               (os.path.normpath(os.path.join(CUR_DIR, strata.lib))))
+
         if (self.fs == "sufs"):
             cmd = "sudo %s %s/%s %s %s %s %s" % (Fio.CREATE_FILE_SUFS, self.root,
                     self.benchmark_config[0], self.file_size, self.numjobs,
@@ -168,10 +175,16 @@ class Fio(object):
             self.fio = "fio-sufs"
         else:
             # create files for fio
-            cmd = "sudo %s %s/%s %s %s %s %s" % (Fio.CREATE_FILE, self.root,
-                    self.benchmark_config[0], self.file_size, self.numjobs,
-                    self.delegation_threads, self.delegation_sockets)
-            self.exec_cmd(cmd)
+            cmd = "sudo %s %s %s/%s %s %s %s %s" % (self.env, Fio.CREATE_FILE, 
+                    self.root, self.benchmark_config[0], self.file_size, 
+                    self.numjobs, self.delegation_threads, self.delegation_sockets)
+            
+            if self.fs == "strata":
+                self.exec_cmd(cmd, subprocess.DEVNULL)
+            else:
+                self.exec_cmd(cmd)
+
+            # self.exec_cmd(cmd)
 
             self.fio = "fio"
 
@@ -203,6 +216,8 @@ class Fio(object):
             p = self.exec_cmd(cmd, subprocess.PIPE)
             out, err = p.communicate()
             return ("sufs_preload_file=%s" % (out.decode("utf-8").rstrip()))
+        elif (self.fs == 'strata'):
+            return self.env
         else:
             return ""
 
@@ -227,10 +242,16 @@ class Fio(object):
 
             p = subprocess.Popen(cmd, shell= True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             p.wait()
-            for line in iter(p.stdout.readline, ''):
-                if line is b'':
+
+            for line in p.stdout.readlines():
+                str_line = str(line)
+                if str_line.find(fio.PERF_STR) != -1:
+                    self.perf_msgs.append(str_line.rstrip())
                     break
-                self.perf_msgs.append(line.rstrip().decode("utf-8"))
+
+                # if line is b'':
+                #     break
+                # self.perf_msgs.append(line.rstrip().decode("utf-8"))
 
         return
 

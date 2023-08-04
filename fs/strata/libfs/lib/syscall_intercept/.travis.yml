@@ -1,0 +1,34 @@
+language: c
+
+dist: bionic
+addons:
+  apt:
+    packages:
+      - libcapstone-dev
+      - pandoc
+
+services:
+  - docker
+
+env:
+  jobs:
+    - PUSH_IMAGE=1 MAKE_PKG=1 OS=ubuntu OS_VER=16.04
+    - PUSH_IMAGE=1 MAKE_PKG=1 OS=fedora OS_VER=25
+    - MAKE_PKG=0 OS=ubuntu OS_VER=16.04 C_COMPILER=clang CPP_COMPILER=clang++
+    - MAKE_PKG=0 OS=fedora OS_VER=25    C_COMPILER=clang CPP_COMPILER=clang++
+    - MAKE_PKG=0 OS=ubuntu OS_VER=16.04
+    - MAKE_PKG=0 OS=fedora OS_VER=25
+    - MAKE_PKG=0 CAPSTONE_EXPERIMENTAL=1 OS=ubuntu OS_VER=16.04
+    - COVERITY=1 OS=ubuntu OS_VER=16.04
+    - COVERAGE=1 OS=ubuntu OS_VER=16.04
+    - NO_DOCKER=1 CMAKE_BUILD_TYPE=Release
+    - NO_DOCKER=1 CMAKE_BUILD_TYPE=Debug
+
+before_install:
+  - if [[ $NO_DOCKER -ne 1 ]]; then pwd ; ls ; source travis_prepare_docker.sh ; fi
+
+script:
+  - if [[ $NO_DOCKER -eq 1 ]]; then source travis_simple_build.sh ; else source build.sh ; fi
+
+after_success:
+  - if [[ $PUSH_THE_IMAGE -eq 1 ]]; then images/push-image.sh $OS-$OS_VER; fi

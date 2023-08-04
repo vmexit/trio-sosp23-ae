@@ -15,6 +15,18 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' --fs='^nova$' \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$SG_LOG_DIR" --log_name="fs-write.log" --duration=10
 
+$FXMARK_BIN_PATH/run-fxmark.py --media='^pm-char$' --fs='^strata$' \
+    --workload='^fio_global_seq-read-4K$|^fio_global_seq-read-2M$' \
+    --ncore="^1$" --iotype='bufferedio' --dthread='0' --dsocket="0" \
+    --rcore='False' --delegate='False' --confirm='True' \
+    --directory_name="$SG_LOG_DIR" --log_name="strata-read.log" --duration=10
+
+$FXMARK_BIN_PATH/run-fxmark.py --media='^pm-char$' --fs='^strata$' \
+    --workload='^fio_global_seq-write-4K$|^fio_global_seq-write-2M$' \
+    --ncore="^1$" --iotype='bufferedio' --dthread='0' --dsocket="0" \
+    --rcore='False' --delegate='False' --confirm='True' \
+    --directory_name="$SG_LOG_DIR" --log_name="strata-write.log" --duration=10
+
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-array' --fs='odinfs' \
     --workload='^fio_global_seq-read-4K$' \
     --ncore="^1$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
@@ -57,6 +69,13 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
     --ncore="^1$" --iotype='bufferedio' --dthread='0' --dsocket="0" \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$SG_META_LOG_DIR" --log_name="nova-meta.log" --duration=10
+
+$FXMARK_BIN_PATH/run-fxmark.py --media='^pm-char$' \
+    --fs='^strata$' \
+    --workload='^MRPL$|^MWCL$|^MWUL$' \
+    --ncore="^1$" --iotype='bufferedio' --dthread='0' --dsocket="0" \
+    --rcore='False' --delegate='False' --confirm='True' \
+    --directory_name="$SG_META_LOG_DIR" --log_name="strata-meta.log" --duration=10
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^MRPL$|^MWCL$|^MWUL$' \

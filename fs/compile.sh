@@ -47,9 +47,20 @@ ret=$?
 if [ $ret -eq 0 ]
 then
     echo "Parradm installed successfully!"
-
 else
     echo "Parradm *not* installed"
+    stat=1
+fi
+
+cd strata
+./compile.sh
+ret=$?
+
+if [ $ret -eq 0 ]
+then 
+    echo "Strata installed successfully!"
+else
+    echo "Strata *not* installed"
     stat=1
 fi
 

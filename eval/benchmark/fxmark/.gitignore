@@ -17,4 +17,9 @@ bin/fxmark-no-pthread
 bin/fxmark-pthread
 bin/root
 bin/.tmp
+bin/libjemalloc.so.2
+bin/nvml_lib/
+bin/strata_build/
+bin/strata_kfs
+bin/libmlfs.so
 logs

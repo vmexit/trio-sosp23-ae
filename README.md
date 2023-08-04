@@ -99,7 +99,7 @@ The script will compile, install, and insert the following kernel modules:
 * NOVA 
 * Winefs
 
-Please note that these kernel modules do not persist across machine reboots. Please rerun the above steps every time you boot the kernel. 
+Please note that these kernel modules do not persist across machine reboots. Please rerun the above steps every time you boot the kernel. Our experimental scripts will detect this before execution. 
 
 ### 4. Install ArckFS
 
@@ -107,8 +107,6 @@ Please note that these kernel modules do not persist across machine reboots. Ple
 $ cd arckfs
 $ ./compile.sh
 ```
-
-Please note that the ArckFS kernel modules do not persist across machine reboots. Please rerun the above steps every time you boot the kernel. 
 
 ### 5. Compile and install benchmarks 
 
@@ -128,7 +126,7 @@ $ cd eval/benchmark/filebench-fd
 $ ./compile.sh
 ```
 
-If the installation failed, see [Known Issues](#known-issues)
+If the installation fails, see [Known Issues](#known-issues)
 
 **5.2 Fxmark and fio**
 
@@ -144,7 +142,7 @@ $ cd eval/benchmark
 $ ./check.sh
 ```
 
-If ```check.sh``` failed, follow the instruction (explained in [Known Issues](#known-issues)) and rerun the ```check.sh```. 
+If ```check.sh``` fails, follow the instruction (explained in [Known Issues](#known-issues)) and rerun the ```check.sh```. 
 
 # Running Experiments:
 
@@ -152,15 +150,35 @@ Main scripts are under ```eval/scripts/```
 
 ```
 eval/scripts
-|---- fio.sh                    (FIO-related experiments; fig5(a), fig5(b), fig6)
+|---- fio.sh                    (FIO-related experiments; fig6)
 |---- fxmark.sh                 (Fxmark-related experiments; fig7)
 |---- filebench.sh              (Filebench-related experiments; fig9)
-|-----filebench-sp.sh           (Running customized filebench for customized file system; fig10)
+|-----filebench-sp.sh           (running customized filebench for customized file system; fig10)
+|-----fig5.sh                   (running single-threaded results; fig5)
+|-----dbench.sh                 (db_bench results for leveldb; table 5)
 |---- run-all.sh                (running all the above scripts)
 |---- run-test.sh               (quick run of fio, fxmark, and filbench with the evaluated file systems)
 |---- arckfs.sh                 (rerun all the experiments related to arckfs)
 |---- parse.sh                  (parse and output the results to directory: eval/data)
 ```
+
+**Exeuction time**
+
+The table below shows the execution time of each script on a two-socket, 56 core machine. Machines with more sockets take longer. 
+
+    
+|      Scripts     | Execution Time in Minutes |
+|:----------------:|:-------------------------:|
+|      fio.sh      |                       270 |
+|     fxmark.sh    |                       177 |
+|   filebench.sh   |                        88 | 
+|   fileben-sp.sh  |                         9 |
+|      fig5.sh     |                        21 |
+|     debnch.sh    |                         7 |
+|    run-all.sh    |                       572 |
+|    run-test.sh   |                       158 |
+|     arckfs.sh    |                        82 |
+|     parse.sh     |                        <1 |
                                                
 **Note**: 
 * We recommend running ```run-test.sh``` first to ensure that everything seems correct 
