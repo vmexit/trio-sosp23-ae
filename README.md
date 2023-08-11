@@ -31,6 +31,7 @@ root
     |---- nova         
     |---- pmfs 
     |---- winefs
+    |---- strata
 |---- linux              (5.13.13 Linux kernel)
 |---- eval               (evaluation)
     |---- benchmark      (source code of workload applications) 
@@ -43,6 +44,8 @@ root
 ### Environment: 
 
 Our artifact should run on any Linux distribution. The current scripts are developed for **Ubuntu 20.04.4 LTS**. Porting to other Linux distributions would require some scripts modifications, especially ```dep.sh```, which installs dependencies with package management tools. 
+
+To run our artifact within a VM to test functionality, see [here](vm/vm.md)
 
 # Setup 
 
