@@ -246,4 +246,8 @@ Jian Zhang (Rutgers University)
 
 Sudarsun Kannan (Rutgers University) 
 
-Sanidhya Kashyap (EPFL) 
+Sanidhya Kashyap (EPFL)
+
+# License
+
+Trio is licensed under Apache License 2.0.
