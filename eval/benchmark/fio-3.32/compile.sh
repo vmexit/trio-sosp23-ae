@@ -2,6 +2,7 @@
 
 sudo -v
 
+./configure --disable-rdma --disable-tcmalloc --disable-pmem
 make
 sudo make install
 
