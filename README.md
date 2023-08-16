@@ -45,7 +45,11 @@ root
 
 Our artifact should run on any Linux distribution. The current scripts are developed for **Ubuntu 20.04.4 LTS**. Porting to other Linux distributions would require some scripts modifications, especially ```dep.sh```, which installs dependencies with package management tools. 
 
-To run our artifact within a VM to test functionality, see [here](vm/vm.md)
+To run our artifact within a VM to test functionality, see [here](vm/vm.md). 
+
+To run our artifact within a container, please first install the kernel on your
+host machine (step 2 below) and then follow the instructions 
+[here](container/container.md). 
 
 # Setup 
 
