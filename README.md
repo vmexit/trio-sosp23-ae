@@ -129,7 +129,7 @@ $ cd eval/benchmark/filebench-fd
 $ ./compile.sh
 
 # Filebench adapted for KVFS
-$ cd eval/benchmark/filebench-fd 
+$ cd eval/benchmark/filebench-kvfs 
 $ ./compile.sh
 ```
 
