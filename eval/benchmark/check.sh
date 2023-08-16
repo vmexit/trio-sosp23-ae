@@ -2,7 +2,7 @@
 
 binary=(fio fxmark/bin/create-file fxmark/bin/fxmark filebench filebench-fd filebench-kvs-sufs)
 
-sufs_binary=(fio-sufs create-file-sufs fxmark/bin/fxmark-sufs filebench-sufs filebench-fd-sufs filebench-fd-sufs-fd filebench-kvs-sufs)
+sufs_binary=(fio-sufs fxmark/bin/create-file-sufs fxmark/bin/fxmark-sufs filebench-sufs filebench-fd-sufs filebench-fd-sufs-fd filebench-kvs-sufs)
 
 for i in ${binary[@]}
 do
