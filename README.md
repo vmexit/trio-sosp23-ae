@@ -179,9 +179,9 @@ The table below shows the execution time of each script on a two-socket, 56 core
 |      fio.sh      |                       270 |
 |     fxmark.sh    |                       177 |
 |   filebench.sh   |                        88 | 
-|   fileben-sp.sh  |                         9 |
+|  filebench-sp.sh |                         9 |
 |      fig5.sh     |                        21 |
-|     debnch.sh    |                         7 |
+|     dbench.sh    |                         7 |
 |    run-all.sh    |                       572 |
 |    run-test.sh   |                       158 |
 |     arckfs.sh    |                        82 |
