@@ -45,6 +45,8 @@ root
 
 Our artifact should run on any Linux distribution. The current scripts are developed for **Ubuntu 20.04.4 LTS**. Porting to other Linux distributions would require some scripts modifications, especially ```dep.sh```, which installs dependencies with package management tools. 
 
+Our artifact requires a machine equipped with Intel Optane persistent memory.
+
 To run our artifact within a VM to test functionality, see [here](vm/vm.md). 
 
 To run our artifact within a container, please first install the kernel on your
@@ -150,6 +152,10 @@ $ ./check.sh
 ```
 
 If ```check.sh``` fails, follow the instruction (explained in [Known Issues](#known-issues)) and rerun the ```check.sh```. 
+
+# Minimal working examples and sample outputs
+
+See [here](minimal-examples.md)
 
 # Running Experiments:
 
