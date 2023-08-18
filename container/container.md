@@ -38,7 +38,7 @@ $ sudo docker pull ubuntu:20.04
 # directories mapped 
 
 $ sudo docker run --privileged --cap-add=ALL \
-    -v /dev/:/dev/ -v /usr/src/:/usr/src/ -v /lib/modules:/lib/modules \
+    -v /dev/:/dev/ \
     -it ubuntu:20.04 bin/bash
 ```
 
@@ -73,6 +73,6 @@ You can run with the new image:
 
 ```
 $ $ sudo docker run --privileged --cap-add=ALL \
-    -v /dev/:/dev/ -v /usr/src/:/usr/src/ -v /lib/modules:/lib/modules \
+    -v /dev/:/dev/ \
     -it <container_image> bin/bash
 ```
