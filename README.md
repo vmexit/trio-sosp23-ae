@@ -97,11 +97,20 @@ Reboot the machine to the installed 5.13.13 kernel.
 
 ### 3. Install and insmod file systems 
 
+Set the kernel up for building external modules
+
+```
+$ cd linux
+$ cp config .config
+$ make oldconfig
+$ make modules_prepare
+```
+
 ```
 $ cd fs
 $ ./compile.sh
 ```
-The script will compile, install, and insert the following kernel modules:
+This script will compile, install, and insert the following kernel modules:
 
 * Odinfs 
 * PMFS 
@@ -109,6 +118,13 @@ The script will compile, install, and insert the following kernel modules:
 * Winefs
 
 Please note that these kernel modules do not persist across machine reboots. Please rerun the above steps every time you boot the kernel. Our experimental scripts will detect this before execution. 
+
+```
+$ cd fs
+$ ./strata.sh
+```
+
+This script will install Strata.
 
 ### 4. Install ArckFS
 
