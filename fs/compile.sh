@@ -52,18 +52,6 @@ else
     stat=1
 fi
 
-cd strata
-./compile.sh
-ret=$?
-
-if [ $ret -eq 0 ]
-then 
-    echo "Strata installed successfully!"
-else
-    echo "Strata *not* installed"
-    stat=1
-fi
-
 if [ $stat -eq 0 ]
 then
     echo "All succeed!"
@@ -74,8 +62,3 @@ else
     echo "------------------------------------------------------------------"
     exit $stat
 fi
-
-
-
-
-

@@ -33,4 +33,9 @@ FB_SP_DATA_DIR=filebench_sp
 
 EXTRA_DATA_DIR=extra
 
+# Number of delegation threads in each NUMA node
+# Used in OdinFS and ArckFS.
+# Each delegation thread operates on a dedicated core
+DTHREADS=12
+
 sudo -v 

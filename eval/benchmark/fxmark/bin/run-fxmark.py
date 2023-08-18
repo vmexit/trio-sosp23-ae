@@ -45,7 +45,7 @@ class Runner(object):
     DMSTRIPEDEV = "/dev/mapper/dm-stripe"
     PMARRAYDEV = "/dev/pmem_ar0"
     PMARRAYCHARDEV = "/dev/supremefs"
-    SUFS_MODULE_PATH = "/lib/modules/5.13.13/sufs.ko"
+    SUFS_MODULE_PATH = "/lib/modules/"+ os.uname().release +"/sufs.ko"
     # test core granularity
     CORE_FINE_GRAIN = 0
     CORE_COARSE_GRAIN = 1
@@ -602,6 +602,9 @@ class Runner(object):
         p = self.exec_cmd("echo {} | sudo dmsetup create {}".format(
             stripe_config, os.path.basename(self.DMSTRIPEDEV)))
 
+        # adhoc way to make it run inside a container
+        time.sleep(1)
+
         # TODO: double check if the unmount hook is invoked
         # It seems that umount hook is not working
         # self.umount_hook.append(self.deinit_dm_stripe_disk)
@@ -1025,7 +1028,16 @@ class Runner(object):
         print("Execution Time={}".format(end - start))
         if self.redirect:
             for l in p.stdout.readlines():
-                self.log(l.decode("utf-8").strip())
+                # special handling for strata in fxmark
+                if bin is self.fxmark_path and fs == "strata":
+                    if l.decode("utf-8").strip().startswith("#"):
+                        self.log(l.decode("utf-8").strip())
+                    else:
+                        sl = l.decode("utf-8").strip().split()
+                        if sl and sl[0].isdigit():
+                            self.log(l.decode("utf-8").strip())
+                else:
+                    self.log(l.decode("utf-8").strip())
 
     def fxmark_cleanup(self):
         cmd = ' '.join([self.fxmark_clean_env(),

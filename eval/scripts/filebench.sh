@@ -31,19 +31,19 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-array' --fs='^odinfs$' \
     --workload='^filebench_fileserver$|^filebench_webserver$' \
-    --ncore="$core" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$core" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$FB_LOG_DIR" --log_name="odinfs-data.log" --duration=30
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-array' --fs='^odinfs$' \
     --workload='^filebench_varmail$|^filebench_webproxy$' \
-    --ncore="$score" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$score" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$FB_LOG_DIR" --log_name="odinfs-meta.log" --duration=10
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^filebench_fileserver$|^filebench_webserver$' \
-    --ncore="$core" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$core" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='True' --delegate='True' --confirm='True' \
     --directory_name="$FB_LOG_DIR" --log_name="sufs-data.log" --duration=30
 

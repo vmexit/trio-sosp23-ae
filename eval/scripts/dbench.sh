@@ -13,7 +13,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='dbench_*' \
-    --ncore="^1$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="^1$" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$DB_LOG_DIR" --log_name="sufs.log" --duration=10
 

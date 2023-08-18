@@ -17,7 +17,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-array' --fs='^odinfs$' \
     --workload='^filebench_varmail-fd$' \
-    --ncore="^8$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="^8$" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$FB_SP_LOG_DIR" --log_name="odinfs-meta-fd.log" --duration=10
 
@@ -47,7 +47,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-array' --fs='^odinfs$' \
     --workload='^filebench_webproxy$' \
-    --ncore="^8$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="^8$" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$FB_SP_LOG_DIR" --log_name="odinfs-meta.log" --duration=10
 

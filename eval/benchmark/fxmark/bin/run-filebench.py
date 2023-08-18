@@ -497,7 +497,6 @@ class FileBench(object):
         self._exec_cmd("echo \'%s\' >> %s" % (config_str, self.config.name)).wait()
 
     def _exec_cmd(self, cmd, out=None):
-        print(cmd)
         p = subprocess.Popen(cmd, shell=True, stdout=out, stderr=out)
         return p
 

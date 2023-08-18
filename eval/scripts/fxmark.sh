@@ -40,7 +40,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-array' --fs='^odinfs$' \
     --workload='^DWTL$|^MRPL$|^MRPM$|^MRPH$|^MRDL$|^MRDM$|^MWCL$|^MWCM$|^MWUL$|^MWUM$|^MWRL$|^MWRM$' \
-    --ncore="$core" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$core" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$FM_LOG_DIR" --log_name="odinfs-meta.log" --duration=10
 

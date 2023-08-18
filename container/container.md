@@ -24,7 +24,7 @@ $ sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 $ sudo systemctl start docker
 
 # verify that docker has been successfully installed  
-sud docker run hello-world
+sudo docker run hello-world
 ```
 
 ### 2. Run the container

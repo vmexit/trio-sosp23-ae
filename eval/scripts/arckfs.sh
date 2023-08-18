@@ -11,13 +11,13 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^fio_global_seq-read-2M$' \
-    --ncore="$core" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$core" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='True' --delegate='True' --confirm='True' \
     --directory_name="$FIO_LOG_DIR" --log_name="sufs-read-2m.log" --duration=10
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^fio_global_seq-write-4K$|^fio_global_seq-write-2M$' \
-    --ncore="$core" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$core" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='True' --delegate='True' --confirm='True' \
     --directory_name="$FIO_LOG_DIR" --log_name="sufs-write.log" --duration=30
 
@@ -29,7 +29,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^filebench_fileserver$|^filebench_webserver$' \
-    --ncore="$core" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="$core" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='True' --delegate='True' --confirm='True' \
     --directory_name="$FB_LOG_DIR" --log_name="sufs-data.log" --duration=30
 
@@ -77,19 +77,19 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^fio_global_seq-read-2M$' \
-    --ncore="^1$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="^1$" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$SG_LOG_DIR" --log_name="sufs-read-2m.log" --duration=10
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='^fio_global_seq-write-4K$|^fio_global_seq-write-2M$' \
-    --ncore="^1$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="^1$" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$SG_LOG_DIR" --log_name="sufs-write.log" --duration=30
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='pm-char-array' --fs='^sufs$' \
     --workload='dbench_*' \
-    --ncore="^1$" --iotype='bufferedio' --dthread='12' --dsocket="$MAX_SOCKETS" \
+    --ncore="^1$" --iotype='bufferedio' --dthread="$DTHREADS" --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='True' --confirm='True' \
     --directory_name="$DB_LOG_DIR" --log_name="sufs.log" --duration=10
 

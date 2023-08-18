@@ -1,8 +1,5 @@
-#
-# Makefile for the linux pmfs-filesystem routines.
-#
+KDIR ?= ../../linux/
 
-KDIR ?= /lib/modules/`uname -r`/build
 BDIR ?= $(CURDIR)/build
 BDIR_MAKEFILE ?= $(BDIR)/Makefile
 MCONFIG = CONFIG_PCI_RING_BUFFER=m

@@ -4,6 +4,10 @@ then
     exit 1
 fi
 
+# score: number of threads for varmail and webproxy. 
+# core: number of threads for multithreaded other benchmarks
+# Each thread operates on a dedicated 
+
 if [ "$#" -eq 1 ] && [ "$1" -eq 1 ]
 then
     core="^$MAX_CPUS$"

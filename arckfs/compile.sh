@@ -2,24 +2,24 @@
 
 sudo -v
 
-cd kfs
-make clean && make -j && make install
-cd - 
+subdirs=(kfs libfs libfsfd libfskv fsutils)
 
-cd libfs
-make clean && make -j && make install
-cd - 
+for i in ${subdirs[@]}
+do 
+    cd $i
+    make clean && make -j && make install
+    ret=$?
+    cd -
 
-cd libfsfd
-make clean && make -j && make install
-cd - 
+    if [ $ret -eq 0 ]
+    then
+        echo "$i installed successfully!"
+    else 
+        echo "$i not installed!"
+        exit 1
+    fi 
+done  
 
-cd libfskv
-make clean && make -j && make install
-cd - 
-
-cd fsutils
-make clean && make -j && make install
-cd - 
+echo "ArckFS installed successfully!"
 
 

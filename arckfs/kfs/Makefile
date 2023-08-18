@@ -1,3 +1,5 @@
+KDIR ?= ../../linux/
+
 obj-m += sufs.o
 
 sufs-y := agent.o balloc.o delegation.o dev_dax.o device.o inode.o lease.o \
@@ -8,13 +10,13 @@ ccflags-y := -std=gnu99 -Wno-declaration-after-statement -O3 -mtune=native
 
 .PHONY: all
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=`pwd`
+	make -C $(KDIR) M=`pwd`
 
 .PHONY: clean
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=`pwd` clean
+	make -C $(KDIR) M=`pwd` clean
 	
 .PHONY: install
 install:
-	sudo mkdir -p /usr/lib/modules/5.13.13/
-	sudo cp -a sufs.ko /usr/lib/modules/5.13.13/
+	sudo mkdir -p /usr/lib/modules/$(shell uname -r)/
+	sudo cp -a sufs.ko /usr/lib/modules/$(shell uname -r)/
