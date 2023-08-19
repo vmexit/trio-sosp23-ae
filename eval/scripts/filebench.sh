@@ -25,7 +25,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
     --workload='^filebench_varmail$|^filebench_webproxy$' \
-    --ncore="$score" --iotype='bufferedio' --dthread='0' --dsocket="0" \
+    --ncore="$score" --iotype='bufferedio' --dthread='0' --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$FB_LOG_DIR" --log_name="ext4-raid0-meta.log" --duration=10
 

@@ -12,7 +12,11 @@
 
 static inline void sufs_libfs_mm_clwb(unsigned long addr)
 {
+#if SUFS_CLWB_FLUSH
     asm volatile(".byte 0x66; xsaveopt %0" : "+m" (*(volatile char *)(addr)));
+#else
+    asm volatile("clflush %0" : "+m"(*(volatile char *)(addr)));
+#endif
 }
 
 

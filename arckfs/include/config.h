@@ -106,4 +106,6 @@
 /* read delegation limits: 32K */
 #define SUFS_READ_DELEGATION_LIMIT (32 * 1024)
 
+#define SUFS_CLWB_FLUSH 1
+
 #endif /* SUFS_CONFIG_H_ */

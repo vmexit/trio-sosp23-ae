@@ -68,7 +68,11 @@ static inline void sufs_kfs_memset_nt(void *dest, unsigned int
 
 static inline void sufs_kfs_mm_clwb(unsigned long addr)
 {
-    asm volatile(".byte 0x66; xsaveopt %0" : "+m" (*(volatile char *)(addr)));
+#if SUFS_CLWB_FLUSH
+    asm volatile(".byte 0x66; xsaveopt %0" : "+m"(*(volatile char *)(addr)));
+#else
+    asm volatile("clflush %0" : "+m"(*(volatile char *)(addr)));
+#endif
 }
 
 

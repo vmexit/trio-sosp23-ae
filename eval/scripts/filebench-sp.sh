@@ -41,7 +41,7 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' --fs='^ext4$|^pmfs$|^nova$|^
 
 $FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
     --workload='^filebench_webproxy$' \
-    --ncore="^8$" --iotype='bufferedio' --dthread='0' --dsocket="0" \
+    --ncore="^8$" --iotype='bufferedio' --dthread='0' --dsocket="$MAX_SOCKETS" \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$FB_SP_LOG_DIR" --log_name="ext4-raid0-meta.log" --duration=10
 

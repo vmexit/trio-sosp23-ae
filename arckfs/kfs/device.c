@@ -92,11 +92,19 @@ static int sufs_hardware_check(void)
      * there is no clwb support for now
      */
 
+#if SUFS_CLWB_FLUSH
     if (!static_cpu_has(X86_FEATURE_CLWB))
     {
         printk("No clwb support!\n");
         return 1;
     }
+#else
+    if (!static_cpu_has(X86_FEATURE_CLFLUSH))
+    {
+            printk("No clush support!\n");
+            return 1;
+    }
+#endif
 
     return 0;
 }
