@@ -43,7 +43,7 @@ root
 
 ### Environment: 
 
-Our artifact should run on any Linux distribution. The current scripts are developed for **Ubuntu 20.04.4 LTS**. Porting to other Linux distributions would require some scripts modifications, especially ```dep.sh```, which installs dependencies with package management tools. 
+Our artifact should run on any Linux distribution. The current scripts are developed for **Ubuntu 20.04.4 LTS**. Porting to other Linux distributions would require some script modifications, especially ```dep.sh```, which installs dependencies with package management tools.
 
 Our artifact requires a machine equipped with Intel Optane persistent memory.
 
@@ -55,7 +55,7 @@ host machine (step 2 below) and then follow the instructions
 
 # Setup 
 
-**Note**: For the below steps, our scripts will complain if it fails to compile or install the target. Check the end part of the scripts' output to ensure that the install is successful. Also, some scripts would prompt to ask the sudo permission at the beginning. 
+**Note**: For the below steps, our scripts will complain if they fail to compile or install the target. Check the end part of the scripts' output to ensure that the install is successful. Also, some scripts would prompt to ask the sudo permission at the beginning.
 
 ### 1. Install the dependencies:
 ```
@@ -119,6 +119,8 @@ This script will compile, install, and insert the following kernel modules:
 
 Please note that these kernel modules do not persist across machine reboots. Please rerun the above steps every time you boot the kernel. Our experimental scripts will detect this before execution. 
 
+[Expected outputs at the end of the execution](docs/output-fs-compile.md)
+
 ```
 $ cd fs
 $ ./strata.sh
@@ -132,6 +134,7 @@ This script will install Strata.
 $ cd arckfs
 $ ./compile.sh
 ```
+[Expected outputs at the end of the execution](docs/output-arckfs-compile.md)
 
 ### 5. Compile and install benchmarks 
 
@@ -167,11 +170,14 @@ $ cd eval/benchmark
 $ ./check.sh
 ```
 
+[Expected outputs at the end of execution](docs/output-check.md)
+
+
 If ```check.sh``` fails, follow the instruction (explained in [Known Issues](#known-issues)) and rerun the ```check.sh```. 
 
 # Minimal working examples and sample outputs
 
-See [here](minimal-examples.md)
+See [here](docs/minimal-examples.md)
 
 # Running Experiments:
 
@@ -224,6 +230,7 @@ The table below shows the execution time of each script on a two-socket, 56 core
 $ cd eval/scripts
 $ ./run-test.sh
 ```
+[Expected outputs at the end of execution](docs/output-run-test.md)
 
 **3. Full runs**
 
@@ -246,7 +253,7 @@ Please check all the ```*.eps``` files numbered according to the figures in the 
 
 # Validation of the main claims:
 
-Please refer to [here](main-claim.md)
+Please refer to [here](docs/main-claim.md)
 
 # Known issues 
 
