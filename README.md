@@ -32,6 +32,7 @@ root
     |---- pmfs 
     |---- winefs
     |---- strata
+    |---- splitfs 
 |---- linux              (5.13.13 Linux kernel)
 |---- eval               (evaluation)
     |---- benchmark      (source code of workload applications) 
@@ -116,6 +117,7 @@ This script will compile, install, and insert the following kernel modules:
 * PMFS 
 * NOVA 
 * Winefs
+* SplitFS
 
 Please note that these kernel modules do not persist across machine reboots. Please rerun the above steps every time you boot the kernel. Our experimental scripts will detect this before execution. 
 
@@ -127,6 +129,12 @@ $ ./strata.sh
 ```
 
 This script will install Strata.
+
+```
+$ cd fs
+$ ./splitfs.sh
+```
+This script will install SplitFS.
 
 ### 4. Install ArckFS
 
