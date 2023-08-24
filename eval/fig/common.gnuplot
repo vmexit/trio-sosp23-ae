@@ -115,6 +115,7 @@ set style line 4 lt rgb "#F0E442" lw 1 pt 7 #yellow
 set style line 5 lt rgb "#0072B2" lw 3 pt 13 #blue
 set style line 6 lt rgb "#D55E00" lw 1 pt 9 #vermilion
 set style line 7 lt rgb "#CC79A7" lw 1 pt 3 #pink
+set style line 8 lt rgb "#4B0082" lw 1 pt 3 #indigo
 
 C1 = "#E69F00"
 C2 = "#56B4E9"
@@ -123,6 +124,7 @@ C4 = "#F0E442"
 C5 = "#0072B2"
 C6 = "#D55E00"
 C7 = "#CC79A7"
+C8 = "#4B0082"
 
 set style line 10 lc rgb 'black' lt 1 lw 1.5
 
@@ -139,6 +141,7 @@ odinfs = 4
 nova = 5
 sufs = 6
 winefs = 7
+splitfs = 8
 
 # color
 cext = C1
@@ -148,6 +151,7 @@ codinfs = C4
 cnova = C5
 csufs = C6
 cwinefs = C7
+csplitfs = C8
 
 # pattern
 pstock = 6

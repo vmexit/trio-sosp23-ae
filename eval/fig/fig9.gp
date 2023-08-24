@@ -25,6 +25,8 @@ plot \
  using 1:($2/1000) title '\nova' with lp ls nova, \
 "../data/filebench/pmem-local:winefs:filebench_fileserver:bufferedio.dat" \
  using 1:($2/1000) title '\winefs' with lp ls winefs, \
+ "../data/filebench/pmem-local:splitfs:filebench_fileserver:bufferedio.dat" \
+ using 1:($2/1000) title '\splitfs' with lp ls splitfs, \
 "../data/filebench/dm-stripe:ext4:filebench_fileserver:bufferedio.dat" \
  using 1:($2/1000) title '\extr' with lp ls extr, \
 "../data/filebench/pm-array:odinfs:filebench_fileserver:bufferedio.dat" \
@@ -45,6 +47,8 @@ plot \
  using 1:($2/1000) title '\nova' with lp ls nova, \
 "../data/filebench/pmem-local:winefs:filebench_webserver:bufferedio.dat" \
  using 1:($2/1000) title '\winefs' with lp ls winefs, \
+ "../data/filebench/pmem-local:splitfs:filebench_webserver:bufferedio.dat" \
+ using 1:($2/1000) title '\splitfs' with lp ls splitfs, \
 "../data/filebench/dm-stripe:ext4:filebench_webserver:bufferedio.dat" \
  using 1:($2/1000) title '\extr' with lp ls extr, \
 "../data/filebench/pm-array:odinfs:filebench_webserver:bufferedio.dat" \
@@ -67,6 +71,8 @@ plot \
  using 1:($2/1000) title '\nova' with lp ls nova, \
 "../data/filebench/pmem-local:winefs:filebench_webproxy:bufferedio.dat" \
  using 1:($2/1000) title '\winefs' with lp ls winefs, \
+  "../data/filebench/pmem-local:splitfs:filebench_webproxy:bufferedio.dat" \
+ using 1:($2/1000) title '\splitfs' with lp ls splitfs, \
 "../data/filebench/dm-stripe:ext4:filebench_webproxy:bufferedio.dat" \
  using 1:($2/1000) title '\extr' with lp ls extr, \
 "../data/filebench/pm-array:odinfs:filebench_webproxy:bufferedio.dat" \
@@ -87,6 +93,8 @@ plot \
  using 1:($2/1000) title '\nova' with lp ls nova, \
 "../data/filebench/pmem-local:winefs:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\winefs' with lp ls winefs, \
+   "../data/filebench/pmem-local:splitfs:filebench_varmail:bufferedio.dat" \
+ using 1:($2/1000) title '\splitfs' with lp ls splitfs, \
 "../data/filebench/dm-stripe:ext4:filebench_varmail:bufferedio.dat" \
  using 1:($2/1000) title '\extr' with lp ls extr, \
 "../data/filebench/pm-array:odinfs:filebench_varmail:bufferedio.dat" \

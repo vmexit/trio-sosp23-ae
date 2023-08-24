@@ -9,6 +9,8 @@ import optparse
 import time
 import pdb
 import cpupol
+import splitfs
+
 from os.path import join
 
 CUR_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -243,6 +245,12 @@ class FileBench(object):
             "sufs_alloc_numa=%s" % self.delegation_sockets,
             "sufs_init_alloc_size=%s" % "8192",
             "sufs_alloc_pin_cpu=%s" % 0])
+        elif self.fs == "splitfs":
+            env_cmd = (splitfs.ledge_str + " " +  
+            ("NVP_TREE_FILE=%s " % (os.path.normpath(os.path.join(CUR_DIR, splitfs.tree))) 
+                + 
+            ("LD_LIBRARY_PATH=%s " % os.path.normpath(CUR_DIR))
+            + ("LD_PRELOAD=%s "  %  os.path.normpath(os.path.join(CUR_DIR, splitfs.lib))))) 
 
         return env_cmd
 
@@ -266,32 +274,23 @@ class FileBench(object):
                 return 
 
                 
-            while True:
-                for l in p.stdout.readlines():
-                    self.bench_out.write("#@ ".encode("utf-8"))
-                    self.bench_out.write(l)
-                    l_str = str(l)
-                    if self.workload == "videoserver":
-                        find_str = FileBench.VIDEO_WRITE_STR if self.video_read_msg else FileBench.VIDEO_READ_STR
-                        idx = l_str.find(find_str)
-                        if idx != -1:
-                            if self.video_read_msg:
-                                self.video_write_msg = l_str[idx+len(find_str):]
-                            else:
-                                self.video_read_msg = l_str[idx+len(find_str):]
-                    else:
-                        idx = l_str.find(FileBench.PERF_STR)
-                        if idx != -1:
-                            self.perf_msg = l_str[idx+len(FileBench.PERF_STR):]
-
-
-
+            for l in p.stdout.readlines():
+                self.bench_out.write("#@ ".encode("utf-8"))
+                self.bench_out.write(l)
+                l_str = str(l)
                 if self.workload == "videoserver":
-                    if self.video_read_msg and self.video_write_msg:
-                        break
+                    find_str = FileBench.VIDEO_WRITE_STR if self.video_read_msg else FileBench.VIDEO_READ_STR
+                    idx = l_str.find(find_str)
+                    if idx != -1:
+                        if self.video_read_msg:
+                            self.video_write_msg = l_str[idx+len(find_str):]
+                        else:
+                            self.video_read_msg = l_str[idx+len(find_str):]
                 else:
-                    if self.perf_msg:
-                        break
+                    idx = l_str.find(FileBench.PERF_STR)
+                    if idx != -1:
+                        self.perf_msg = l_str[idx+len(FileBench.PERF_STR):]
+
             self.bench_out.flush()
 
     def report(self):

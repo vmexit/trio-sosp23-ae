@@ -342,6 +342,138 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
 	return ksys_fallocate(fd, mode, offset, len);
 }
 
+
+long vfs_dynamic_remap(struct file *file1, struct file *file2,
+		       loff_t offset1, loff_t offset2,
+		       const char __user *start_addr,
+		       loff_t count)
+{
+	struct inode *inode1 = file_inode(file1);
+	struct inode *inode2 = file_inode(file2);
+
+	long ret = 0;
+	long ret_remap = 0;
+	size_t len = 0, max_page_dirty = 0;
+	unsigned long end_offset = 0, start_offset = 0;
+
+	LIST_HEAD(uf);
+
+	if (offset1 < 0 || offset2 < 0 || count <= 0)
+		return -EINVAL;
+
+	if (!(file1->f_mode & FMODE_WRITE) || !(file2->f_mode & FMODE_WRITE))
+		return -EBADF;
+
+	if (IS_IMMUTABLE(inode1) || IS_IMMUTABLE(inode2))
+		return -EPERM;
+
+	/*
+	 * We cannot allow any fallocate operation on an active swapfile
+	 */
+	if (IS_SWAPFILE(inode1) || IS_SWAPFILE(inode2))
+		return -ETXTBSY;
+
+	/*
+	 * Revalidate the write permissions, in case security policy has
+	 * changed since the files were opened.
+	 */
+	ret = security_file_permission(file1, MAY_WRITE);
+	if (ret)
+		return ret;
+
+	ret = security_file_permission(file2, MAY_WRITE);
+	if (ret)
+		return ret;
+
+	if (S_ISFIFO(inode1->i_mode) || S_ISFIFO(inode2->i_mode))
+		return -ESPIPE;
+
+	if (S_ISDIR(inode1->i_mode) || S_ISDIR(inode2->i_mode))
+		return -EISDIR;
+
+	if (!S_ISREG(inode1->i_mode) && !S_ISBLK(inode1->i_mode))
+		return -ENODEV;
+
+	if (!S_ISREG(inode2->i_mode) && !S_ISBLK(inode2->i_mode))
+		return -ENODEV;
+
+	/* Check for wrap through zero too */
+	if (((offset1 + count) > inode1->i_sb->s_maxbytes) || ((offset1 + count) < 0))
+		return -EFBIG;
+
+	/* Check for wrap through zero too */
+	if (((offset2 + count) > inode2->i_sb->s_maxbytes) || ((offset2 + count) < 0))
+		return -EFBIG;
+
+	if (!file1->f_op->dynamic_remap)
+		return -EOPNOTSUPP;
+
+	// perform write on the unaligned portion
+	start_offset = offset2;
+	end_offset = offset2 + count;
+	if (offset1 % PAGE_SIZE != 0) {
+		max_page_dirty = PAGE_SIZE - (offset1 % PAGE_SIZE);
+		len = count < max_page_dirty ? count : max_page_dirty;
+		ret = vfs_write(file1, start_addr + offset2, len, &offset1);
+		if (ret < len) {
+			goto out;
+		}
+		count -= ret;
+		offset1 += ret;
+		offset2 += ret;
+	}
+
+	if (count == 0) {
+		goto out;
+	}
+
+	file_start_write(file1);
+	file_start_write(file2);
+
+	ret_remap = file1->f_op->dynamic_remap(file1, file2, offset1, offset2, count);
+	offset1 += ret_remap;
+	offset2 += ret_remap;
+	count -= ret_remap;
+	ret += ret_remap;
+
+	/*
+	 * Create inotify and fanotify events.
+	 *
+	 * To keep the logic simple always create events if fallocate succeeds.
+	 * This implies that events are even created if the file size remains
+	 * unchanged, e.g. when using flag FALLOC_FL_KEEP_SIZE.
+	 */
+	if (ret >= 0) {
+		fsnotify_modify(file1);
+		fsnotify_modify(file2);
+	}
+
+	file_end_write(file1);
+	file_end_write(file2);
+
+ out:
+	return ret;
+}
+
+SYSCALL_DEFINE6(dynamic_remap, int, fd1, int, fd2, loff_t, offset1, loff_t,
+		  offset2, const char __user *, start_addr, loff_t, count) 
+{
+	struct fd f1 = fdget(fd1);
+	struct fd f2 = fdget(fd2);
+	int error = -EBADF;
+
+	if (f1.file && f2.file)
+	{
+		error = vfs_dynamic_remap(f1.file, f2.file, offset1, offset2,
+					   start_addr, count);
+		fdput(f1);
+		fdput(f2);
+		
+	}
+
+	return error;
+}
+
 /*
  * access() needs to use the real uid/gid, not the effective uid/gid.
  * We do this by temporarily clearing all FS-related capabilities and

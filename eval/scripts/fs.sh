@@ -1,4 +1,4 @@
-fs=(pmfs nova winefs odinfs)
+fs=(pmfs nova winefs odinfs splitfs_kfs)
 
 for i in ${fs[@]}
 do

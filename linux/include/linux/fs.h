@@ -2049,6 +2049,8 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **, void **);
 	long (*fallocate)(struct file *file, int mode, loff_t offset,
 			  loff_t len);
+	long (*dynamic_remap)(struct file *file1, struct file *file2,
+				loff_t offset1, loff_t offset2, loff_t count);
 	void (*show_fdinfo)(struct seq_file *m, struct file *f);
 #ifndef CONFIG_MMU
 	unsigned (*mmap_capabilities)(struct file *);

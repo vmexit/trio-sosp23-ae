@@ -14,6 +14,7 @@ import re
 import optparse
 import psutil
 import strata
+import splitfs
 
 CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 FXMARK_DIR = os.path.dirname(CUR_DIR)
@@ -109,6 +110,7 @@ class Runner(object):
             "ext2-no-jnl": "ext2",
             "ext3-no-jnl": "ext3",
             "ext4-no-jnl": "ext4",
+            "splitfs": "ext4"
         }
         self.pmem_dm_stripe_num = self.FILTER[6]
         self.PMEM_DM_STRIPE_CHUNK_SIZE = 4096
@@ -261,9 +263,6 @@ class Runner(object):
         self.DBENCH_NAME      = "run-dbench.py"
         self.PERFMN_NAME      = "perfmon.py"
         self.PID_NAME         = "pid.txt"
-        self.LD_LIBRARY_PATH  = "../splitfs/splitfs/"
-        self.NVP_TREE_FILE    = "../splitfs/splitfs/bin/nvp_nvp.tree"
-        self.LD_PRELOAD       = "../splitfs/splitfs/libnvp.so"
         self.EXT_BLOCK_SIZE = 4096
         self.EXT_STRIDE_SIZE = 512
         self.LOCAL_CPU_NODE = int(self.PMEMDEV[-1])
@@ -306,6 +305,8 @@ class Runner(object):
             "btrfs": "-f",
             "jfs": "-q",
             "reiserfs": "-q",
+            "splitfs": 
+            f"-b {self.EXT_BLOCK_SIZE} -E stride={self.EXT_STRIDE_SIZE} -F",
         }
 
         # media config
@@ -689,7 +690,7 @@ class Runner(object):
         # For splitfs, it only works when it is mounted at /mnt/pmem_emul
         if mnt_path != "/mnt/pmem_emul":
             return False
-        if not self.mount_anyfs(media, "ext4", mnt_path):
+        if not self.mount_anyfs(media, "splitfs", mnt_path):
             return False
         return True
 
@@ -715,6 +716,8 @@ class Runner(object):
 
         if fs.startswith("ext"):
             cmd = ' '.join(["sudo mount -o dax -t", self.get_fs(fs), dev_path, mnt_path])
+        elif fs == "splitfs":
+            cmd = ' '.join(["sudo mount -o dax -t", fs, dev_path, mnt_path])
         else:
             cmd = ' '.join(["sudo mount -t", self.get_fs(fs), dev_path, mnt_path])
         p = self.exec_cmd(cmd, self.dev_null)
@@ -880,7 +883,12 @@ class Runner(object):
             if bench == "fxmark":
                     fs_env = ("LD_PRELOAD=%s" % 
                               (os.path.normpath(os.path.join(CUR_DIR, strata.lib))))
-
+        elif fs == "splitfs":
+            if bench == "fxmark":
+                    fs_env = (splitfs.ledge_str + " " +  
+                        ("NVP_TREE_FILE=%s " % (os.path.normpath(os.path.join(CUR_DIR, splitfs.tree))) + 
+                        ("LD_LIBRARY_PATH=%s " % os.path.normpath(CUR_DIR)) + 
+                        ("LD_PRELOAD=%s "  %  os.path.normpath(os.path.join(CUR_DIR, splitfs.lib))))) 
 
         env = env + ' ' + fs_env
         return env
@@ -1029,7 +1037,7 @@ class Runner(object):
         if self.redirect:
             for l in p.stdout.readlines():
                 # special handling for strata in fxmark
-                if bin is self.fxmark_path and fs == "strata":
+                if bin is self.fxmark_path and (fs == "strata" or fs == "splitfs"):
                     if l.decode("utf-8").strip().startswith("#"):
                         self.log(l.decode("utf-8").strip())
                     else:

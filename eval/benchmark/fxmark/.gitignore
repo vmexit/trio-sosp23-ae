@@ -22,4 +22,7 @@ bin/nvml_lib/
 bin/strata_build/
 bin/strata_kfs
 bin/libmlfs.so
+bin/libnvp.so
+bin/nvp_nvp.tree
+bin/libfileops_nvp.so
 logs

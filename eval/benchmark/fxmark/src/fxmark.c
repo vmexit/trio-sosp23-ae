@@ -204,8 +204,9 @@ static int parse_option(int argc, char *argv[], struct cmd_opt *opt)
 			break;
 		case 'l':
 			opt->profile_stat_file = optarg;
-        case 'f':
-            opt->fs = find_fs(optarg);
+			break;
+		case 'f':
+			opt->fs = find_fs(optarg);
 			break;
 		case 'p':
 			opt->pid = atoi(optarg);

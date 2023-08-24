@@ -67,16 +67,15 @@ class DBench(object):
                         self.bin, self.workload, DBench.DBBENCH_OPS, self.root)
                         
             p = self._exec_cmd(cmd, subprocess.PIPE)
-            while True:
-                for l in p.stdout.readlines():
-                    self.bench_out.write("#@ ".encode("utf-8"))
-                    self.bench_out.write(l)
-                    l_str = str(l)
-                    idx = l_str.find(self.workload)
-                    if idx is not -1:
-                        self.perf_msg = l_str[idx+len(self.workload):]
-                if self.perf_msg:
-                    break
+
+            for l in p.stdout.readlines():
+                self.bench_out.write("#@ ".encode("utf-8"))
+                self.bench_out.write(l)
+                l_str = str(l)
+                idx = l_str.find(self.workload)
+                if idx is not -1:
+                    self.perf_msg = l_str[idx+len(self.workload):]
+
             self.bench_out.flush()
         return 0
 

@@ -6,6 +6,6 @@ sudo apt install build-essential bc rsync liblz4-tool libelf-dev cmake autoconf 
      flex bison dpkg-dev libssl-dev htop ndctl python2 libnuma-dev libtool \
      libkmod-dev gnuplot pkg-config libcapstone-dev \
      ninja-build valgrind libaio1 libaio-dev  numactl libncurses-dev \
-     python-is-python3 python3-pip \
+     python-is-python3 python3-pip libboost-dev \
 
 sudo -H pip install psutil

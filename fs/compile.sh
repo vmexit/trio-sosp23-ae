@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo -v 
-fs=(pmfs nova winefs odinfs)
+fs=(pmfs nova winefs odinfs splitfs_kfs)
 
 #Work around, will fix
 sudo modprobe nova

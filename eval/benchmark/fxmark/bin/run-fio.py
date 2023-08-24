@@ -14,6 +14,7 @@ import io
 from os.path import join
 import cpupol
 import strata
+import splitfs
 
 CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -165,6 +166,13 @@ class Fio(object):
         if (self.fs == "strata"):
             self.env = ("LD_PRELOAD=%s" % 
                (os.path.normpath(os.path.join(CUR_DIR, strata.lib))))
+        
+        if (self.fs == "splitfs"):
+            self.env = (splitfs.ledge_str + " " +  
+                        ("NVP_TREE_FILE=%s " % (os.path.normpath(os.path.join(CUR_DIR, splitfs.tree))) 
+                         + 
+                        ("LD_LIBRARY_PATH=%s " % os.path.normpath(CUR_DIR))
+                        + ("LD_PRELOAD=%s "  %  os.path.normpath(os.path.join(CUR_DIR, splitfs.lib))))) 
 
         if (self.fs == "sufs"):
             cmd = "sudo %s %s/%s %s %s %s %s" % (Fio.CREATE_FILE_SUFS, self.root,
@@ -179,7 +187,7 @@ class Fio(object):
                     self.root, self.benchmark_config[0], self.file_size, 
                     self.numjobs, self.delegation_threads, self.delegation_sockets)
             
-            if self.fs == "strata":
+            if self.fs == "strata" or self.fs == "splitfs":
                 self.exec_cmd(cmd, subprocess.DEVNULL)
             else:
                 self.exec_cmd(cmd)
@@ -216,7 +224,7 @@ class Fio(object):
             p = self.exec_cmd(cmd, subprocess.PIPE)
             out, err = p.communicate()
             return ("sufs_preload_file=%s" % (out.decode("utf-8").rstrip()))
-        elif (self.fs == 'strata'):
+        elif self.fs == 'strata' or self.fs == 'splitfs':
             return self.env
         else:
             return ""
