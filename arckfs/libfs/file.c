@@ -35,10 +35,6 @@ ssize_t sufs_libfs_file_mnode_read(struct sufs_libfs_file_mnode *f, char *addr,
     }
     else
     {
-#if 0
-        printf("f->off is %ld, size is %ld\n", f->off,
-                sufs_libfs_mnode_file_size(f->m));
-#endif
         if (f->off >= sufs_libfs_mnode_file_size(f->m))
             return 0;
 

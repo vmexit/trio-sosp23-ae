@@ -1,8 +1,8 @@
-CFLAGS = -O0 -g 
+CFLAGS = -O0 -g -lurcu-qsbr
 
 TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs 
 
-LDFLAGS = -L../libfs -l:sufs.so -Wl,-R -Wl,../libfs/
+LDFLAGS = -L../libfs -l:sufs.so -Wl,-R -Wl,../libfs/ -lurcu-qsbr
 
 .PHONY: default
 default: $(TARGET)

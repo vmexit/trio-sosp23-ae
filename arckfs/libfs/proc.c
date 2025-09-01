@@ -10,10 +10,6 @@
 #include "mfs.h"
 #include "filetable.h"
 
-/*
- * TODO: We probably want to cache the sufs_proc in a per-thread variable
- * as Linux does.
- */
 
 struct sufs_libfs_proc_list_entry *sufs_libfs_proc_list_head = NULL;
 
@@ -32,7 +28,6 @@ struct sufs_libfs_proc* sufs_libfs_proc_init(void)
     ret->uid = getuid();
     ret->gid = getgid();
 
-    /* FIXME: This should be acquired from the kernel */
     ret->cwd_m = sufs_libfs_root_dir;
 
     ret->ftable = malloc(sizeof(struct sufs_libfs_filetable));

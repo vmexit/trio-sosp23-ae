@@ -8,28 +8,8 @@
 #include "tgroup.h"
 
 
-
-/* I don't expect that there is a large number of processes / tgroups for our
- * workload, so this implementation is made to be as simple as possible.
- *
- * If the above expectation is not met, advanced data structures such as
- * hash table, or caching, can be used to improve the performance.
- *
- * This code also should consider concurrency control..
- */
-
-/*
- * TODO: Hack into the process exit routine to remove exiting process
- * from its tgroup
- */
-
-/*
- * We currently support up to 255 trust groups.
- * With a normal linux, the below array costs for around 30MB
- */
 char * sufs_kfs_pid_to_tgroups = NULL;
 
-/* protecting sufs_tgroup */
 spinlock_t sufs_tgroup_lock;
 
 struct sufs_tgroup * sufs_tgroup = NULL;
@@ -41,7 +21,6 @@ static inline int can_modify_tgroup(void)
 
     cred = current_cred();
 
-    /* As of now, only root can modify tgroup */
     return (cred->uid.val == 0);
 }
 
@@ -86,19 +65,12 @@ void sufs_kfs_fini_tgroup(void)
     sufs_kfs_pid_to_tgroups = NULL;
 }
 
-/* invoked when the sufs_tgroup_lock is held */
-/* If pid is not zero, init the group with the pid information */
+
 static int __sufs_kfs_alloc_tgroup(int pid)
 {
     int i = 0;
 
-    /*
-     * tgroup == 0 means there is no tgroup
-     * We should probably have a translation between the virtual and physical
-     * tgroup, oh well
-     */
-
-    for (i = 1; i < SUFS_MAX_TGROUP; i++)
+    for (i = SUFS_MIN_TGROUP; i < SUFS_MAX_TGROUP; i++)
     {
         if (!sufs_tgroup[i].used)
             goto found;
@@ -222,8 +194,6 @@ int sufs_kfs_tgroup_add_process(int tgid, int pid)
     if (tgid >= SUFS_MAX_TGROUP)
         return -EINVAL;
 
-    /* TODO: check the validity of pid... */
-
     tgroup = &(sufs_tgroup[tgid]);
 
     if (!(tgroup->used))
@@ -257,8 +227,6 @@ int sufs_kfs_tgroup_remove_process(int tgid, int pid)
 
     if (tgid >= SUFS_MAX_TGROUP)
         return -EINVAL;
-
-    /* TODO: check the validity of pid... */
 
     tgroup = &(sufs_tgroup[tgid]);
 

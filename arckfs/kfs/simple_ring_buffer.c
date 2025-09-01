@@ -10,12 +10,15 @@
 #include "simple_ring_buffer.h"
 #include "agent.h"
 
-struct sufs_ring_buffer * sufs_kfs_sr_create(int index, int entry_size)
+struct sufs_ring_buffer * sufs_kfs_sr_create(void * addr, 
+    int entry_size, int size)
 {
-    int size = SUFS_ODIN_ONE_RING_SIZE, buffer_size = 0;
+    int buffer_size = 0;
     struct sufs_ring_buffer *ret;
 
-    ret = (struct sufs_ring_buffer *) (sufs_kfs_buffer_ring_kaddr[index]);
+    memset(addr, 0, size);
+
+    ret = (struct sufs_ring_buffer *) addr; 
 
     ret->kfs_requests = (struct sufs_ring_buffer_entry *)
             (((unsigned long) ret) + sizeof(struct sufs_ring_buffer));
@@ -41,7 +44,7 @@ int sufs_kfs_sr_send_request(struct sufs_ring_buffer *ring, void *from)
     local_irq_save(irq);
     sufs_spin_lock(&ring->spinlock);
 
-    if (ring->kfs_requests[ring->producer_idx].valid)
+    if (sufs_kfs_sr_is_full(ring))
     {
         ret = -SUFS_RBUFFER_AGAIN;
         goto out;
@@ -62,18 +65,21 @@ out:
 
 
 
-int sufs_kfs_sr_receive_request(struct sufs_ring_buffer *ring, void *to)
+int sufs_kfs_sr_receive_request(struct sufs_ring_buffer *ring, void *to, 
+        int lock)
 {
     unsigned long irq = 0;
     int ret = 0;
 
     /* Spin to wait for a new entry */
-#if 0
-    local_irq_save(irq);
-    sufs_spin_lock(&ring->spinlock);
-#endif
+    if (lock)
+    {
+        local_irq_save(irq);
+        sufs_spin_lock(&ring->spinlock);
+    }
 
-    if (!ring->kfs_requests[ring->comsumer_idx].valid)
+
+    if (sufs_kfs_sr_is_empty (ring))
     {
         ret = -SUFS_RBUFFER_AGAIN;
         goto out;
@@ -87,9 +93,11 @@ int sufs_kfs_sr_receive_request(struct sufs_ring_buffer *ring, void *to)
     ring->comsumer_idx = (ring->comsumer_idx + 1) % ring->num_of_entry;
 
 out:
-#if 0
-    sufs_spin_unlock(&ring->spinlock);
-    local_irq_restore(irq);
-#endif
+    if (lock)
+    {
+        sufs_spin_unlock(&ring->spinlock);
+        local_irq_restore(irq);
+    }
+    
     return ret;
 }

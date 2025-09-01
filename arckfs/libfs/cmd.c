@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 
 #include "../include/libfs_config.h"
@@ -55,23 +56,26 @@ int sufs_libfs_cmd_map_file(int ino, int writable, unsigned long *index_offset)
 
     entry.inode = ino;
     entry.perm = writable;
-#if 0
-    printf("ino is %d\n", ino);
-#endif
 
     ret = syscall(SYS_ioctl, dev_fd, SUFS_CMD_MAP, &entry);
 
     if (ret == 0)
         (*index_offset) = entry.index_offset;
 
+    if (entry.again)
+       ret = -EAGAIN;
+
     return ret;
 }
 
-int sufs_libfs_cmd_unmap_file(int ino)
+int sufs_libfs_cmd_unmap_file(int ino, char file_type, 
+                              unsigned long index_offset)
 {
     struct sufs_ioctl_map_entry entry;
 
     entry.inode = ino;
+    entry.file_type = file_type; 
+    entry.index_offset = index_offset; 
 
     return syscall(SYS_ioctl, dev_fd, SUFS_CMD_UNMAP, &entry);
 }
@@ -89,11 +93,6 @@ int sufs_libfs_cmd_alloc_inodes(int *ino, int *num, int cpu)
     (*ino) = entry.inode;
     (*num) = entry.num;
 
-#if 0
-    printf("get inodes, start: %d, end: %d\n", entry.inode, entry.inode +
-            entry.num - 1);
-#endif
-
     return ret;
 }
 
@@ -103,11 +102,6 @@ int sufs_libfs_cmd_free_inodes(int ino, int num)
 
     entry.inode = ino;
     entry.num = num;
-
-#if 0
-    printf("free inodes, start: %d, end: %d\n", entry.inode, entry.inode +
-            entry.num - 1);
-#endif
 
     return syscall(SYS_ioctl, dev_fd, SUFS_CMD_FREE_INODE, &entry);
 
@@ -188,3 +182,24 @@ int sufs_libfs_cmd_chmod(int inode, unsigned int mode,
     return syscall(SYS_ioctl, dev_fd, SUFS_CMD_CHMOD, &entry);
 }
 
+int sufs_libfs_cmd_commit(int inode, char file_type, 
+                          unsigned long index_offset)
+{
+    struct sufs_ioctl_commit_entry entry; 
+
+    entry.inode = inode; 
+    entry.file_type = file_type;
+    entry.index_offset = index_offset;
+
+    return syscall(SYS_ioctl, dev_fd, SUFS_CMD_COMMIT, &entry);
+}
+
+int sufs_libfs_cmd_acquire_rename_lease(void)
+{
+    return syscall(SYS_ioctl, dev_fd, SUFS_CMD_GET_RENAME_LEASE);
+}
+
+int sufs_libfs_cmd_release_rename_lease(void)
+{
+    return syscall(SYS_ioctl, dev_fd, SUFS_CMD_FREE_RENAME_LEASE);
+}

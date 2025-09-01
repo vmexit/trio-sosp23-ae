@@ -46,20 +46,12 @@ sufs_libfs_filetable_getfile(struct sufs_libfs_filetable *ft, int fd)
     if (fd < 0 || fd >= SUFS_LIBFS_MAX_FD)
         return NULL;
 
-    /*
-     * XXX This isn't safe: there could be a concurrent close that
-     * drops the reference count to zero.
-     */
-
     f = sufs_libfs_fdinfo_getfile(&ft->info_[cpu][fd]);
 
     return f;
 }
 
-/*
- * Allocate a FD and point it to f.  This takes over the reference
- * to f from the caller.
- */
+
 int sufs_libfs_filetable_allocfd(struct sufs_libfs_filetable *ft,
         struct sufs_libfs_file_mnode *f,
         bool percpu, bool cloexec)
@@ -74,19 +66,11 @@ int sufs_libfs_filetable_allocfd(struct sufs_libfs_filetable *ft,
 
     for (fd = 0; fd < SUFS_LIBFS_MAX_FD; fd++)
     {
-        /*
-         * Note that we skip over locked FDs because that means they're
-         * either non-null or about to be.
-         */
-
+  
         if (__atomic_load_n(&(ft->info_[cpu][fd].data_), __ATOMIC_RELAXED)
                 == none.data_
                 && sufs_libfs_cmpxch_fdinfo(&ft->info_[cpu][fd], none, newinfo))
         {
-            /*
-             * The default state of cloexec_ is 'true', so we only need to
-             * write to it if this is a keep-exec FD.
-             */
 
             if (!cloexec)
                 ft->cloexec_[cpu][fd] = cloexec;
@@ -105,16 +89,10 @@ int sufs_libfs_filetable_allocfd(struct sufs_libfs_filetable *ft,
 
 void sufs_libfs_filetable_close(struct sufs_libfs_filetable *ft, int fd)
 {
-    /*
-     * XXX(sbw) if f->ref_ > 1 the kernel will not actually close
-     * the file when this function returns (i.e. sys_close can return
-     * while the file/pipe/socket is still open).
-     */
-
     int cpu = fd >> SUFS_LIBFS_FILETABLE_CPUSHIFT;
     fd = fd & SUFS_LIBFS_FILETABLE_FDMASK;
 
-    struct sufs_libfs_fdinfo *infop, fdinfo, newinfo;
+    struct sufs_libfs_fdinfo *infop, newinfo;
 
     if (cpu < 0 || cpu >= SUFS_MAX_CPU)
     {
@@ -130,7 +108,7 @@ void sufs_libfs_filetable_close(struct sufs_libfs_filetable *ft, int fd)
 
     /* Lock the FD to prevent concurrent modifications */
     infop = &ft->info_[cpu][fd];
-    fdinfo = sufs_libfs_filetable_lock_fdinfo(infop);
+    sufs_libfs_filetable_lock_fdinfo(infop);
 
     /* Clear cloexec_ back to default state of 'true' */
     if (!ft->cloexec_[cpu][fd])

@@ -19,16 +19,6 @@ int sufs_init_rangenode_cache(void)
 
 void sufs_free_rangenode_cache(void)
 {
-    /*
-     * FIXME: Somehow the below code causes a kernel warning.
-     * I suspect this is due to the flags we use in kmem_cache_create
-     *
-     * Comment it out for now
-     */
-//    if (sufs_range_node_cachep)
-//        kmem_cache_destroy(sufs_range_node_cachep);
-
-
     sufs_range_node_cachep = NULL;
 }
 

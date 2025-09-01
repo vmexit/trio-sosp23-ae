@@ -54,6 +54,7 @@ int sufs_alloc_inode_to_libfs(unsigned long uaddr);
 int sufs_free_inode_from_libfs(unsigned long uaddr);
 
 int sufs_kfs_set_inode(int ino, char type, unsigned int mode,
-        unsigned int uid, unsigned int gid, unsigned long index_offset);
+        unsigned int uid, unsigned int gid, unsigned long index_offset, 
+        int parent);
 
 #endif

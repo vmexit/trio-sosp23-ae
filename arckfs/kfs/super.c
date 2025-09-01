@@ -15,9 +15,10 @@
 #include "balloc.h"
 #include "agent.h"
 #include "ring_buffer.h"
+#include "checker.h"
 
 struct sufs_super_block sufs_sb;
-int sufs_kfs_delegation = 0;
+int sufs_kfs_delegation = 0, sufs_kfs_checker = 0;
 
 void sufs_init_sb(void)
 {
@@ -75,7 +76,7 @@ void sufs_sb_update_devs(struct sufs_dev_arr * sufs_dev_arr)
  * Multiple pages for shadow inode
  * One extra page for root inode
  */
-static void sufs_sb_fs_init(void)
+static void sufs_sb_fs_init(int soft)
 {
     unsigned long sinode_size = 0;
     int i = 0;
@@ -85,11 +86,14 @@ static void sufs_sb_fs_init(void)
     sufs_sb.sinode_start = (struct sufs_shadow_inode *)
                                (sufs_sb.start_virt_addr + SUFS_SUPER_PAGE_SIZE);
 
-    for (i = 0; i < SUFS_MAX_INODE_NUM; i++)
+    if (!soft)
     {
-        sufs_sb.sinode_start[i].file_type = SUFS_FILE_TYPE_NONE;
+        for (i = 0; i < SUFS_MAX_INODE_NUM; i++)
+        {
+            sufs_sb.sinode_start[i].file_type = SUFS_FILE_TYPE_NONE;
+            sufs_kfs_init_lease(&sufs_sb.sinode_start[i].lease);
+        }
     }
-
 
     sufs_sb.head_reserved_blocks = (sinode_size >> PAGE_SHIFT) + 2;
 
@@ -98,11 +102,37 @@ static void sufs_sb_fs_init(void)
     sufs_init_block_free_list(&sufs_sb, 0);
 }
 
+long sufs_reserve_vmas_for_pm(void)
+{
+    struct file *file;
+
+    long ret = 0;
+
+    file = filp_open(SUFS_DEV_PATH, O_RDWR, 0);
+
+    if (IS_ERR(file))
+    {
+        ret = PTR_ERR(file);
+        printk("Open: %s failed with error : %d\n", SUFS_DEV_PATH, (int)ret);
+
+        return ret;
+    }
+
+   
+    ret = vm_mmap(file, SUFS_MOUNT_ADDR, sufs_sb.tot_bytes,
+                  PROT_READ | PROT_WRITE,
+                  MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, 0);
+
+    filp_close(file, NULL);
+
+    if (IS_ERR_VALUE(ret))
+        return ret;
+
+    return ret;
+}
 
 long sufs_mount(void)
 {
-    struct file * file;
-
     long ret = 0;
 
     struct sufs_tgroup * tgroup = NULL;
@@ -115,29 +145,7 @@ long sufs_mount(void)
         return -ENOMEM;
     }
 
-    /* TODO: Think of the permission of this file ... */
-    file = filp_open(SUFS_DEV_PATH, O_RDWR, 0);
-
-    if (IS_ERR(file))
-    {
-        ret = PTR_ERR(file);
-        printk("Open: %s failed with error : %d\n", SUFS_DEV_PATH, (int) ret);
-
-        return ret;
-    }
-
-    /*
-     * Reserving a large VMA to contain all the PM devices in the process
-     * address space.
-     *
-     * Protection does not matter; This VMA does not support on demand paging.
-     *
-     */
-    ret = vm_mmap(file, SUFS_MOUNT_ADDR, sufs_sb.tot_bytes,
-            PROT_READ | PROT_WRITE,
-            MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, 0);
-
-    filp_close(file, NULL);
+    ret = sufs_reserve_vmas_for_pm();
 
     if (IS_ERR_VALUE(ret))
         return ret;
@@ -184,7 +192,138 @@ int sufs_umount(unsigned long addr)
     return ret;
 }
 
-/* TODO: add a macro to enable/disable debugging code */
+int sufs_checker_map(unsigned long arg)
+{
+    long ret = 0;
+    struct vm_area_struct *vma = NULL;
+    pgprot_t prop;
+    struct sufs_ioctl_checker_map_entry entry;
+
+    unsigned long inode_state_size = SUFS_INODE_STATE_SIZE;
+    unsigned long mapped_state_size = SUFS_MAPPED_STATE_SIZE;
+    unsigned long page_state_size = (sufs_sb.tot_bytes >> SUFS_PAGE_SHIFT) 
+                                            * sizeof(int);
+
+    unsigned long * ring_kaddr = NULL;
+
+
+    ret = sufs_reserve_vmas_for_pm();
+    if (IS_ERR_VALUE(ret))
+        return ret;
+
+    vma = find_vma(current->mm, SUFS_MOUNT_ADDR);
+
+    if (!vma)
+    {
+        printk("Cannot find the mount vma!\n");
+        return -ENOMEM;
+    }
+
+    prop = vm_get_page_prot(VM_READ);
+    sufs_map_pages(vma, SUFS_MOUNT_ADDR, sufs_kfs_offset_to_pfn(0), prop,
+                   sufs_sb.tot_bytes >> PAGE_SHIFT);
+
+    ret = vm_mmap(NULL, SUFS_STATE_ADDR, inode_state_size + 
+        mapped_state_size + page_state_size,
+                  PROT_READ | PROT_WRITE,
+                  MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, 0);
+
+    if (IS_ERR_VALUE(ret))
+        return ret;
+
+    vma = find_vma(current->mm, SUFS_STATE_ADDR);
+
+    if (!vma)
+    {
+        printk("Cannot find the mount vma!\n");
+        return -ENOMEM;
+    }
+
+    /*  Makes vmf_insert_pfn_prot happy */
+    /*  TODO: validate whether VM_PFNMAP has any side effect or not */
+    vma->vm_flags |= VM_PFNMAP;
+
+    ret = sufs_kfs_mmap_vmalloc_pages_to_user(
+            (unsigned long) sufs_inode_state,
+            SUFS_STATE_ADDR, inode_state_size, vma, 1);
+
+    if (ret < 0)
+    {
+        printk("sufs_kfs_mmap_vmalloc_pages_to_user (inode_state) failed\n");
+        goto err_unmap; 
+    }
+
+    ret = sufs_kfs_mmap_vmalloc_pages_to_user(
+            (unsigned long) sufs_page_state, 
+            SUFS_STATE_ADDR + inode_state_size, 
+            page_state_size, vma, 1);
+    
+    if (ret < 0)
+    {
+        printk("sufs_kfs_mmap_vmalloc_pages_to_user (page_state) failed\n");
+        goto err_unmap; 
+    }
+
+    ret = vm_mmap(NULL, SUFS_CHECKER_FILE_RING_ADDR, 
+                  SUFS_CHECKER_FILE_RING_SIZE + SUFS_CHECKER_RES_RING_SIZE,
+                  PROT_READ | PROT_WRITE,
+                  MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, 0);
+
+    if (IS_ERR_VALUE(ret))
+        return ret;
+
+    vma = find_vma(current->mm, SUFS_CHECKER_FILE_RING_ADDR);
+
+    if (!vma)
+    {
+        printk("Cannot find the mount vma!\n");
+        return -ENOMEM;
+    }
+
+    /*  Makes vmf_insert_pfn_prot happy */
+    /*  TODO: validate whether VM_PFNMAP has any side effect or not */
+    vma->vm_flags |= VM_PFNMAP;
+    
+    ret = sufs_kfs_mmap_ring_vmalloc(SUFS_CHECKER_FILE_RING_ADDR,
+            SUFS_CHECKER_FILE_RING_SIZE, vma, 1, &(ring_kaddr));
+
+    if (ret < 0)
+    {
+        printk("sufs_kfs_mmap_ring_vmalloc (file_ring) failed\n");
+        goto err_unmap;
+    }
+
+    sufs_checker_queue_init(&files_ring, 
+            ring_kaddr, SUFS_CHECKER_FILE_RING_SIZE);
+
+    ret = sufs_kfs_mmap_ring_vmalloc(SUFS_CHECKER_RES_RING_ADDR,
+            SUFS_CHECKER_RES_RING_SIZE, vma, 1, &(ring_kaddr));
+
+    if (ret < 0)
+    {
+        printk("sufs_kfs_mmap_ring_vmalloc (res_ring) failed\n");
+        goto err_unmap;
+    }
+
+    sufs_checker_queue_init(&res_ring, ring_kaddr, SUFS_CHECKER_RES_RING_SIZE);
+    
+    
+    entry.max_block = sufs_kfs_virt_addr_to_block(sufs_sb.end_virt_addr);
+
+    if (copy_to_user((void *)arg, &entry, 
+                            sizeof(struct sufs_ioctl_checker_map_entry)))
+        return -EFAULT; 
+
+    sufs_kfs_checker = 1;
+
+    return ret;
+
+err_unmap:
+    printk("vm_mmap failed!\n");
+    vm_munmap(SUFS_RING_ADDR, inode_state_size + page_state_size);
+    return -ENOMEM;
+}
+
 long sufs_debug_read()
 {
     return 0;
@@ -198,12 +337,15 @@ static void sufs_init_root_inode(void)
     memset((void *) vaddr, 0, PAGE_SIZE);
 
     sufs_kfs_set_inode(SUFS_ROOT_INODE, SUFS_FILE_TYPE_DIR,
-            SUFS_ROOT_PERM, 0, 0, sufs_kfs_block_to_offset(data_block));
+            SUFS_ROOT_PERM, 0, 0, 
+            sufs_kfs_block_to_offset(data_block), SUFS_ROOT_INODE);
+
+    sufs_inode_state[SUFS_ROOT_INODE] = SUFS_CHECKER_STATE_EXIST;
 }
 
 
 /* Format the file system */
-int sufs_fs_init(void)
+int sufs_fs_init(int soft)
 {
     int ret = 0;
 
@@ -219,9 +361,15 @@ int sufs_fs_init(void)
     if ((ret = sufs_alloc_block_free_lists(&sufs_sb)) != 0)
         goto fail_block_free_lists;
 
-    sufs_sb_fs_init();
+    if ((ret = sufs_checker_init()) != 0)
+        goto fail_checker_init;
 
-    sufs_init_root_inode();
+    sufs_sb_fs_init(soft);
+
+    if (!soft)
+    {
+        sufs_init_root_inode();
+    }
 
     if (sufs_kfs_agent_init)
     {
@@ -233,6 +381,8 @@ int sufs_fs_init(void)
 
     sufs_kfs_init_agents(&sufs_sb);
 
+    sufs_kfs_rename_lease_init();
+    
     sufs_kfs_agent_init = 1;
 
     return 0;
@@ -244,6 +394,9 @@ fail_inode_free_list:
 
 fail_rangenode:
     sufs_kfs_fini_tgroup();
+
+fail_checker_init:
+    sufs_checker_fini();
 
 fail:
     return ret;
@@ -267,6 +420,8 @@ void sufs_fs_fini(void)
 
     sufs_kfs_fini_tgroup();
 
+    sufs_checker_fini();
+    
     return;
 }
 

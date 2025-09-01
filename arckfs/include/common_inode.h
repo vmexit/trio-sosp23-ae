@@ -24,17 +24,15 @@ struct sufs_inode
 
 struct sufs_dir_entry
 {
-    char name_len;
+    unsigned char name_len;
     int ino_num;
     short rec_len;
     struct sufs_inode inode;
     char name[];
 };
 
-/* Make sure this is a multiple of page size */
 struct sufs_fidx_entry
 {
-    /* offset from the beginning of the first virtual address of PM */
     unsigned long offset;
 };
 

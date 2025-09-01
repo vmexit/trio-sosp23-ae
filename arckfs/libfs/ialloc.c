@@ -175,9 +175,6 @@ static void __sufs_libfs_alloc_inode_from_kernel(
         return;
     }
 
-#if 0
-    printf("allocated inode: ino %d, num %d, cpu: %d\n", inode, num, cpu);
-#endif
 
     sufs_libfs_add_inode_free_lists(free_list, inode, num);
 }
@@ -238,11 +235,6 @@ int sufs_libfs_free_inode(struct sufs_libfs_super_block * sb, int ino)
 
     sufs_libfs_inode_clear_allocated(ino);
 
-#if 0
-    printf("self: %lx, free inode: %d\n", pthread_self(), ino);
-    /* fflush(stdout); */
-#endif
-
     return 0;
 }
 
@@ -274,11 +266,6 @@ int sufs_libfs_new_inode(struct sufs_libfs_super_block * sb, int cpu)
     pthread_spin_unlock(&free_list->lock);
 
     sufs_libfs_inode_set_allocated(ret);
-
-#if 0
-    printf("self: %lx, allocate inode: %d\n", pthread_self(), ret);
-    /* fflush(stdout); */
-#endif
 
     return ret;
 }

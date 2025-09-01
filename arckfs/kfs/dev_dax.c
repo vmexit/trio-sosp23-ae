@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/dax.h>
 
+#include "balloc.h"
 #include "../include/kfs_config.h"
 #include "dev_dax.h"
 #include "super.h"
@@ -49,6 +50,8 @@ static int sufs_init_one_dev(char * path, int index)
             sufs_dev_arr.size_in_bytes[index]);
 
     sufs_sb.tot_bytes = sufs_sb.end_virt_addr - sufs_sb.start_virt_addr + 1;
+    sufs_sb.max_block = sufs_kfs_virt_addr_to_block(sufs_sb.end_virt_addr);
+
 
     filp_close(dev_file, NULL);
 
@@ -68,8 +71,7 @@ int sufs_init_dev(int num)
     for (i = 0; i < num; i++)
     {
         int ret;
-        /* Yes, I know sprintf is unsafe */
-        /* TODO: Some hardwired code here but should be fine */
+
         sprintf(name, "/dev/dax%d.0", i);
 
         if ((ret = sufs_init_one_dev(name, i)) != 0)

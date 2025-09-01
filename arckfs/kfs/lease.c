@@ -9,13 +9,9 @@
 #include "lease.h"
 #include "super.h"
 #include "inode.h"
+#include "mmap.h"
 
-/*
- * Just need something simple here to make the prototype work, the release is
- * not the interesting part of the paper and it is unlikely to become the
- * performance bottleneck.
- */
-
+struct sufs_kfs_lease sufs_kfs_rename_lease; 
 
 static struct sufs_kfs_lease* sufs_kfs_get_lease(int ino)
 {
@@ -32,7 +28,6 @@ static struct sufs_kfs_lease* sufs_kfs_get_lease(int ino)
     return &(sinode->lease);
 }
 
-/* return true if we need to check the expire condition of lease */
 static inline int sufs_kfs_lease_need_check_expire(struct sufs_kfs_lease *l,
         int new_state)
 {
@@ -40,91 +35,11 @@ static inline int sufs_kfs_lease_need_check_expire(struct sufs_kfs_lease *l,
             || l->state == SUFS_KFS_WRITE_OWNED);
 }
 
-static inline int sufs_kfs_is_lease_expired(int ino, struct sufs_kfs_lease *l,
-        int index)
-{
-    unsigned long *lease_ring_addr = NULL;
-    if (l->lease_tsc[index] + SUFS_KFS_LEASE_PERIOD < sufs_kfs_rdtsc())
-        return 1;
-
-    lease_ring_addr = sufs_tgroup[l->owner[index]].lease_ring_kaddr;
-
-    return !(test_bit(ino, lease_ring_addr));
-
-}
-
-/* Invoke when the lock is acquired
- *
- * return 1 if the lease can be acquired,
- * otherwise SUFS_KFS_ERROR*
- *
- * For write, one can acquire the lease if
- * 1. The lease is unowned
- * 2. Its trust group has not acquired the lease
- * 3. all the previous leases expired.
- *
- * For read, one can acquire the lease if
- * 1. The lease is unowned
- * 2. Its trust group has not acquired the lease
- * 3. The previous lease is WRITE_OWNED and it has expired
- * 4. The previous lease is READ_OWNED and it still has space to add one more
- *    trust group
- */
-
-static int sufs_kfs_can_acquire(int ino, struct sufs_kfs_lease *l, int tgid,
-        int new_state)
-{
-    int i = 0, ret = 1;
-
-    if (l->state == SUFS_KFS_UNOWNED)
-        return ret;
-
-    /*
-     * Upgrade a read lease with a write lease, disable it for now since
-     * I have not implemented the way to change the permission of the mapping
-     */
-
-    /*
-     if (new_state == SUFS_KFS_WRITE_OWNED && l->state == SUFS_KFS_READ_OWNED
-            && l->owner_cnt == 1 && l->owner[0] == tgid)
-        return ret;
-    */
-
-    for (i = 0; i < l->owner_cnt; i++)
-    {
-        /* Try to acquire a lease that is already granted */
-        if (l->owner[i] == tgid)
-            return -EINVAL;
-
-        if (sufs_kfs_lease_need_check_expire(l, new_state))
-        {
-            /* Check whether there is unexpired lease */
-            if (!sufs_kfs_is_lease_expired(ino, l, i))
-                return -EAGAIN;
-        }
-    }
-
-    if (new_state == SUFS_KFS_READ_OWNED && l->state == SUFS_KFS_READ_OWNED)
-    {
-        if (l->owner_cnt == SUFS_KFS_LEASE_MAX_OWNER)
-            return -ENOSPC;
-    }
-
-    return ret;
-}
-
-/*
- * Garbage collect the unused entry in the lease.
- * Not intended for performance, just make it as simple as possible
- *
- * Invoked when the lock is held
- */
 static void sufs_kfs_gc_lease(struct sufs_kfs_lease *l)
 {
     int i = 0;
 
-    /* XXX: The below two arrays might overflow with a
-     large SUFS_KFS_LEASE_MAX_OWNER */
+
     pid_t sowner[SUFS_KFS_LEASE_MAX_OWNER];
     unsigned long slease_tsc[SUFS_KFS_LEASE_MAX_OWNER];
     int sowner_cnt = 0;
@@ -148,23 +63,8 @@ static void sufs_kfs_gc_lease(struct sufs_kfs_lease *l)
     l->owner_cnt = sowner_cnt;
 }
 
-/*
- * Need metadata check when one file is transferred from one trust group to
- * another
- */
 static inline int sufs_kfs_need_mcheck(struct sufs_kfs_lease *l)
 {
-    /*
-     * We ensure that a metadata integrity check has been performed when the
-     * file state is transferred to UNOWNED
-     *
-     * So no metadata check for this case
-     *
-     * For read owned, there is no chance for the ufs to modify file system
-     * state.
-     *
-     * So only metadata check if it is transferred from write owned.
-     */
     if (l->state == SUFS_KFS_UNOWNED || l->state == SUFS_KFS_READ_OWNED)
     {
         return 0;
@@ -173,7 +73,8 @@ static inline int sufs_kfs_need_mcheck(struct sufs_kfs_lease *l)
     return 1;
 }
 
-static void sufs_kfs_clean_map_ring(int ino, struct sufs_kfs_lease * l)
+static void 
+sufs_kfs_clean_up_force_info(int ino, struct sufs_kfs_lease * l)
 {
     int i = 0;
 
@@ -182,45 +83,130 @@ static void sufs_kfs_clean_map_ring(int ino, struct sufs_kfs_lease * l)
         int owner = l->owner[i];
         struct sufs_tgroup * tgroup = sufs_kfs_tgid_to_tgroup(owner);
 
+        l->lease_tsc[i] = 0;
+
         if (tgroup)
-            clear_bit(ino, tgroup->map_ring_kaddr);
+        {
+            if (tgroup->ddl_ring_kaddr)
+            {
+                tgroup->ddl_ring_kaddr[ino] = 0;
+            }
+        }
     }
 }
 
-int sufs_kfs_acquire_write_lease(int ino, struct sufs_kfs_lease *l, int tgid)
+
+
+static int 
+sufs_kfs_try_acquire (int ino, struct sufs_kfs_lease *l, 
+    struct sufs_shadow_inode * sinode, int tgid, int new_state)
 {
-    int ret;
-    unsigned long flags;
+    int i = 0, ret = 0;
+    struct sufs_tgroup *tgroup = NULL;
+    struct vm_area_struct *vma = NULL;
 
-    spin_lock_irqsave(&(l->lock), flags);
+    if (l->state == SUFS_KFS_UNOWNED)
+        return ret;
 
-    if ((ret = sufs_kfs_can_acquire(ino, l, tgid, SUFS_KFS_WRITE_OWNED)) > 0)
+    for (i = 0; i < l->owner_cnt; i++)
     {
+        struct sufs_ring_buffer * lease_ring = NULL;
+        unsigned long *ddl_ring_addr = NULL;
 
-        if (sufs_kfs_need_mcheck(l))
+        if (l->lease_tsc[i] == 0)
         {
-            /* TODO: perform metadata check */
+            unsigned long * wanted_ring_addr = 
+                    sufs_tgroup[l->owner[i]].wanted_ring_kaddr;
+
+            if (wanted_ring_addr)
+            {
+                set_bit(ino, wanted_ring_addr);
+            }
+            else
+            {
+                return 0;
+            }
+            
+            lease_ring = sufs_tgroup[l->owner[i]].lease_ring;
+
+            if (lease_ring)
+            {
+                sufs_lease_queue_send(lease_ring, ino);
+            }
+
+            ddl_ring_addr = sufs_tgroup[l->owner[i]].ddl_ring_kaddr;
+
+            l->lease_tsc[i] = 
+                sufs_kfs_rdtsc() + SUFS_LEASE_CYCLES + SUFS_LEASE_GRACE_CYCLES;
+            
+            if (ddl_ring_addr)
+            {
+                ddl_ring_addr[ino] = sufs_kfs_rdtsc() + SUFS_LEASE_CYCLES;
+            }
+
+            return -EAGAIN;
         }
+        else if (sufs_kfs_rdtsc() <= l->lease_tsc[i])
+        {
+            return -EAGAIN; 
+        }
+        else 
+        {
+            unsigned long * mapped_ring_addr = 
+                    sufs_tgroup[l->owner[i]].map_ring_kaddr;
 
-        sufs_kfs_clean_map_ring(ino, l);
+            if (test_bit(ino, mapped_ring_addr))
+            {
+                tgroup = sufs_kfs_tgid_to_tgroup(tgid);
+                if (tgroup && sinode) 
+                {
+                    vma = tgroup->mount_vma;
+                    sufs_do_real_unmap_file(&sufs_sb, ino, sinode->file_type, 
+                        sinode->index_offset, sinode, vma, tgroup, tgid);
+                }
+            }
 
-        l->state = SUFS_KFS_WRITE_OWNED;
-        l->owner_cnt = 1;
-        l->owner[0] = tgid;
-        l->lease_tsc[0] = sufs_kfs_rdtsc();
-
-        ret = 0;
+            return ret;
+        }
     }
 
-    spin_unlock_irqrestore(&(l->lock), flags);
+    if (new_state == SUFS_KFS_READ_OWNED && l->state == SUFS_KFS_READ_OWNED)
+    {
+        if (l->owner_cnt > SUFS_KFS_LEASE_MAX_OWNER)
+            return -ENOSPC;
+    }
 
     return ret;
 }
 
-/*
- * Test whether a trust group has acquired the lock or not
- * Invoke when holding the lock
- */
+
+int sufs_kfs_acquire_write_lease(int ino, struct sufs_kfs_lease *l, 
+                                 struct sufs_shadow_inode * sinode, int tgid)
+{
+    int ret = 0;
+    unsigned long flags = 0;
+
+    local_irq_save(flags);
+    sufs_spin_lock(&(l->lock));
+
+    ret = sufs_kfs_try_acquire(ino, l, sinode, tgid, SUFS_KFS_WRITE_OWNED);
+
+    if (ret == 0)
+    {
+        sufs_kfs_clean_up_force_info(ino, l);
+
+        l->state = SUFS_KFS_WRITE_OWNED;
+        l->owner_cnt = 1;
+        l->owner[0] = tgid;
+    }
+
+    sufs_spin_unlock(&(l->lock));
+    local_irq_restore(flags);
+
+    return ret;
+}
+
+
 static int sufs_kfs_is_acquired_lock(struct sufs_kfs_lease *l, int tgid,
         int *index)
 {
@@ -253,69 +239,52 @@ int sufs_kfs_release_lease(int ino, struct sufs_kfs_lease *l, int tgid)
     unsigned long flags;
     int ret = 0, index = 0;
 
-    spin_lock_irqsave(&(l->lock), flags);
-
-    /* check whether the lease has been acquired by the current trust group */
-    if (!sufs_kfs_is_acquired_lock(l, tgid, &index))
-    {
-        ret = -EINVAL;
-        goto out;
-    }
+    local_irq_save(flags);
+    sufs_spin_lock(&(l->lock));
 
     if (l->state == SUFS_KFS_WRITE_OWNED)
     {
+        sufs_kfs_clean_up_force_info(ino, l);
 
-        /* TODO: Perform metadata check */
         l->state = SUFS_KFS_UNOWNED;
         l->owner_cnt = 0;
         ret = 0;
     }
-    else
+    else if (l->state == SUFS_KFS_READ_OWNED)
     {
         l->owner[index] = 0;
-        l->lease_tsc[index] = 0;
         sufs_kfs_gc_lease(l);
 
         if (l->owner_cnt == 0)
         {
-            /* TODO: Perform metadata check */
             l->state = SUFS_KFS_UNOWNED;
         }
 
         ret = 0;
     }
 
-out:
-    spin_unlock_irqrestore(&(l->lock), flags);
+    sufs_spin_unlock(&(l->lock));
+    local_irq_restore(flags);
+
     return ret;
 }
 
-
-
-
-int sufs_kfs_acquire_read_lease(int ino, struct sufs_kfs_lease *l, int tgid)
+int sufs_kfs_acquire_read_lease(int ino, struct sufs_kfs_lease *l, 
+    struct sufs_shadow_inode * sinode, int tgid)
 {
+
     int ret = 0;
     unsigned long flags = 0;
 
-#if 0
-    printk("lock addr is %lx\n", (unsigned long) (&(l->lock)));
-#endif
+    local_irq_save(flags);
+    sufs_spin_lock(&(l->lock));
 
-    spin_lock_irqsave(&(l->lock), flags);
-
-    if ((ret = sufs_kfs_can_acquire(ino, l, tgid, SUFS_KFS_READ_OWNED)) > 0)
+    if ((ret = sufs_kfs_try_acquire(ino, l, sinode, tgid, 
+        SUFS_KFS_READ_OWNED)) > 0)
     {
-
-        if (sufs_kfs_need_mcheck(l))
-        {
-            /* TODO: perform metadata check */
-        }
-
         if (l->state == SUFS_KFS_READ_OWNED)
         {
             l->owner[l->owner_cnt] = tgid;
-            l->lease_tsc[l->owner_cnt] = sufs_kfs_rdtsc();
             l->owner_cnt++;
         }
         else
@@ -323,14 +292,13 @@ int sufs_kfs_acquire_read_lease(int ino, struct sufs_kfs_lease *l, int tgid)
             l->state = SUFS_KFS_READ_OWNED;
             l->owner_cnt = 1;
             l->owner[0] = tgid;
-            l->lease_tsc[0] = sufs_kfs_rdtsc();
         }
 
         ret = 0;
     }
 
-    spin_unlock_irqrestore(&(l->lock), flags);
-
+    sufs_spin_unlock(&(l->lock));
+    local_irq_restore(flags);
     return ret;
 }
 
@@ -343,7 +311,8 @@ int sufs_kfs_renew_lease(int ino)
 
     int tgid = sufs_kfs_pid_to_tgid(current->tgid, 0);
 
-    spin_lock_irqsave(&(l->lock), flags);
+    local_irq_save(flags);
+    sufs_spin_lock(&(l->lock));
 
     /* check whether the lease has been acquired by the current trust group */
     if (!sufs_kfs_is_acquired_lock(l, tgid, &index))
@@ -352,8 +321,57 @@ int sufs_kfs_renew_lease(int ino)
         goto out;
     }
 
-    l->lease_tsc[index] = sufs_kfs_rdtsc();
 out:
-    spin_unlock_irqrestore(&(l->lock), flags);
+    sufs_spin_unlock(&(l->lock));
+    local_irq_restore(flags);
+    
     return ret;
 }
+
+int sufs_kfs_acquire_rename_lease(struct sufs_kfs_lease *l)
+{
+    int ret = 0;
+    unsigned long flags = 0;
+
+    local_irq_save(flags);
+    sufs_spin_lock(&(l->lock));
+
+    if (l->owner_cnt != 0 && sufs_kfs_rdtsc() <= l->lease_tsc[0])
+    {
+        ret = -EAGAIN; 
+        goto out; 
+    }
+
+    l->state = SUFS_KFS_WRITE_OWNED;
+    l->owner_cnt = 1;
+    l->lease_tsc[0] = 
+        sufs_kfs_rdtsc() + SUFS_LEASE_CYCLES;
+
+out: 
+    sufs_spin_unlock(&(l->lock));
+    local_irq_restore(flags);
+    return ret;
+}
+
+int sufs_kfs_release_rename_lease(struct sufs_kfs_lease *l)
+{
+    unsigned long flags;
+    int ret = 0;
+
+    local_irq_save(flags);
+    sufs_spin_lock(&(l->lock));
+
+    if (l->state == SUFS_KFS_WRITE_OWNED)
+    {
+        l->state = SUFS_KFS_UNOWNED;
+        l->owner_cnt = 0;
+        ret = 0;
+    }
+
+    sufs_spin_unlock(&(l->lock));
+    local_irq_restore(flags);
+
+    return ret;
+}
+
+

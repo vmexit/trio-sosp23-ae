@@ -11,7 +11,9 @@ int sufs_libfs_cmd_mount(void);
 int sufs_libfs_cmd_umount(void);
 
 int sufs_libfs_cmd_map_file(int ino, int writable, unsigned long *index_offset);
-int sufs_libfs_cmd_unmap_file(int ino);
+
+int sufs_libfs_cmd_unmap_file(int ino, char file_type,
+                              unsigned long index_offset);
 
 int sufs_libfs_cmd_alloc_inodes(int *ino, int *num, int cpu);
 int sufs_libfs_cmd_free_inodes(int ino, int num);
@@ -29,5 +31,12 @@ int sufs_libfs_cmd_chown(int inode, int uid, int gid,
 
 int sufs_libfs_cmd_chmod(int inode, unsigned int mode,
         unsigned long inode_offset);
+
+int sufs_libfs_cmd_commit(int inode, char file_type,
+                          unsigned long index_offset);
+
+int sufs_libfs_cmd_acquire_rename_lease(void);
+
+int sufs_libfs_cmd_release_rename_lease(void);
 
 #endif

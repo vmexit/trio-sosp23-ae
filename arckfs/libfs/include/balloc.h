@@ -24,20 +24,12 @@ struct sufs_libfs_free_list
      struct sufs_libfs_range_node *first_node; // lowest address free range
      struct sufs_libfs_range_node *last_node; // highest address free range
 
-     /*
-      * Start and end of allocatable range, inclusive. Excludes csum and
-      * parity blocks.
-      */
      unsigned long block_start;
      unsigned long block_end;
 
      unsigned long num_free_blocks;
 
-     /* How many nodes in the rb tree? */
      unsigned long num_blocknode;
-
-     /* TODO: Think of the cache line break */
-
 };
 
 extern atomic_char * sufs_libfs_block_own_map;

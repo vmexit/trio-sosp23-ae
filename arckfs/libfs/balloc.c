@@ -262,14 +262,6 @@ void sufs_libfs_init_block_free_list(struct sufs_libfs_super_block *sb,
                 free_list->last_node = blknode;
                 free_list->num_blocknode = 1;
             }
-
-#if 0
-            printf("%s: free list, addr: %lx, cpu %d, pm_node %d,  block "
-                    "start %lu, end %lu, "
-                    "%lu free blocks\n", __func__, (unsigned long) free_list, i,
-                    j, free_list->block_start, free_list->block_end,
-                    free_list->num_free_blocks);
-#endif
         }
     }
 }
@@ -508,11 +500,6 @@ static int not_enough_blocks(struct sufs_libfs_free_list *free_list,
             || free_list->num_free_blocks / free_list->num_blocknode
                     < num_blocks)
     {
-#if 0
-        printf("%s: num_free_blocks=%ld; num_blocks=%ld; "
-                "first=0x%p; last=0x%p\n", __func__, free_list->num_free_blocks,
-                num_blocks, first, last);
-#endif
         return 1;
     }
 
@@ -627,7 +614,7 @@ static void sufs_libfs_alloc_zero_blocks(unsigned long start_block,
         unsigned long block_counts)
 {
     unsigned long i = 0, zeroed_blocks = 0, start_zeroed_blocks = 0;
-    int delegated = 0, cpt_idx = 0, index = 0, level = 0;
+    int delegated = 0, cpt_idx = 0, index = 0;
 
     long issued_cnt[SUFS_PM_MAX_INS];
     struct sufs_notifyer * completed_cnt = NULL;
@@ -644,10 +631,6 @@ static void sufs_libfs_alloc_zero_blocks(unsigned long start_block,
         {
             completed_cnt = sufs_libfs_get_completed_cnt(index);
         }
-
-#if 0
-        printf("level is %d\n", sufs_libfs_cpt_level);
-#endif
 
         completed_cnt = (struct sufs_notifyer * )((unsigned long) completed_cnt +
                 1 * sizeof(struct sufs_notifyer) * SUFS_PM_MAX_INS);
@@ -673,13 +656,11 @@ static void sufs_libfs_alloc_zero_blocks(unsigned long start_block,
                     (zeroed_blocks * SUFS_PAGE_SIZE < SUFS_WRITE_DELEGATION_LIMIT))
             {
                 unsigned long vaddr = sufs_libfs_block_to_virt_addr(start_zeroed_blocks);
-#if 0
-                printf("memset start_zeroed_blocks: %ld, zeroed_blocks: %ld\n",
-                        start_zeroed_blocks, zeroed_blocks);
-#endif
+
                 memset((void *) vaddr, 0, zeroed_blocks * SUFS_PAGE_SIZE);
 
-                sufs_libfs_clwb_buffer((void *) vaddr, zeroed_blocks * SUFS_PAGE_SIZE);
+                sufs_libfs_clwb_buffer((void *) vaddr, 
+                    zeroed_blocks * SUFS_PAGE_SIZE, 0);
             }
             else
             {
@@ -705,12 +686,10 @@ static void sufs_libfs_alloc_zero_blocks(unsigned long start_block,
                 (zeroed_blocks * SUFS_PAGE_SIZE < SUFS_WRITE_DELEGATION_LIMIT))
         {
             unsigned long vaddr = sufs_libfs_block_to_virt_addr(start_zeroed_blocks);
-#if 0
-                printf("memset start_zeroed_blocks: %ld, zeroed_blocks: %ld\n",
-                        start_zeroed_blocks, zeroed_blocks);
-#endif
+
             memset((void *) vaddr, 0, zeroed_blocks * SUFS_PAGE_SIZE);
-            sufs_libfs_clwb_buffer((void *) vaddr, zeroed_blocks * SUFS_PAGE_SIZE);
+            sufs_libfs_clwb_buffer((void *) vaddr, 
+                    zeroed_blocks * SUFS_PAGE_SIZE, 0);
         }
         else
         {
@@ -730,7 +709,6 @@ static void sufs_libfs_alloc_zero_blocks(unsigned long start_block,
         sufs_libfs_complete_delegation(&sufs_libfs_sb, issued_cnt, completed_cnt);
     }
 
-    /* sufs_libfs_sfence(); */
 }
 
 int sufs_libfs_new_blocks(struct sufs_libfs_super_block *sb,
@@ -760,13 +738,6 @@ int sufs_libfs_new_blocks(struct sufs_libfs_super_block *sb,
             num = (num_blocks / SUFS_LIBFS_EXTRA_BLOCK_CHUNK + 1)
                     * SUFS_LIBFS_EXTRA_BLOCK_CHUNK;
         }
-
-#if 0
-        printf("%s: cpu %d, pm_node: %d, free_blocks %lu, required %lu, "
-                "blocknode %lu, requested_block: %ld\n", __func__, cpu, pm_node,
-                free_list->num_free_blocks, num_blocks,
-                free_list->num_blocknode, num);
-#endif
 
         if (sufs_libfs_cmd_alloc_blocks(&block, &num, cpu, pm_node) < 0)
         {
@@ -832,14 +803,9 @@ int sufs_libfs_free_data_blocks(struct sufs_libfs_super_block * sb,
     return ret;
 }
 
-/*
- * Allocate data blocks; blocks to hold file data
- * The offset for the allocated block comes back in
- * blocknr.  Return the number of blocks allocated.
- */
 
-static int inline sufs_libfs_data_get_next_node(struct sufs_libfs_super_block *sb,
-        struct sufs_libfs_mnode * mnode)
+static int inline sufs_libfs_data_get_next_node(
+    struct sufs_libfs_super_block *sb, struct sufs_libfs_mnode * mnode)
 {
     return ((mnode->data.file_data.data_node + 1) % sb->pm_nodes);
 }
@@ -884,8 +850,8 @@ int sufs_libfs_new_file_data_blocks(struct sufs_libfs_super_block * sb,
         abort();
     }
 
-    int allocated = sufs_libfs_do_new_file_data_blocks(sb, mnode, blocknr, count,
-            zero, cpu);
+    int allocated = sufs_libfs_do_new_file_data_blocks(sb, mnode, 
+        blocknr, count, zero, cpu);
 
     return allocated > 0 ? 0 : -1;
 }
@@ -916,11 +882,6 @@ static int sufs_libfs_do_new_index_blocks(struct sufs_libfs_super_block *sb,
                     int zero)
 {
     int cpu = 0, numa = 0;
-    /*
-   * This is one policy, use the pm_node of the curr_cpu. The other policy
-   * may be record the numa of the cpu that creates the inode and just use
-   * that
-   */
 
     if (sufs_libfs_getcpu(&cpu, &numa) < 0)
     {

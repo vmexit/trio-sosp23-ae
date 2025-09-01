@@ -490,14 +490,105 @@ __ssize_t getdents64 (int fd, void * buffer, size_t length)
         return sufs_libfs_orig_getdents64(fd, buffer, length);
 }
 
-
-
-#if 0
-int chdir(const char *path)
+void * sufs_libfs_getinode(int fd)
 {
-    return sys_chdir(sufs_libfs_current_proc(), path);
+    if (sufs_libfs_is_lib_fd(fd))
+    {
+        return sufs_libfs_sys_get_inode(sufs_libfs_current_proc(),
+                                    sufs_libfs_ufd_to_lib_fd(fd));
+    }
+    else
+    {
+        return NULL; 
+    }
 }
-#endif
+
+void *sufs_libfs_getdentry(int fd)
+{
+    if (sufs_libfs_is_lib_fd(fd))
+    {
+        return sufs_libfs_sys_get_dentry(sufs_libfs_current_proc(),
+                                         sufs_libfs_ufd_to_lib_fd(fd));
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+void * sufs_libfs_get_dentry_by_path(char * path)
+{
+    char *path_n = sufs_libfs_upath_to_lib_path(path);
+
+    if (path_n != NULL)
+    {
+        return sufs_libfs_sys_get_dentry_by_path(sufs_libfs_current_proc(),
+                                                 path_n);
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+void *sufs_libfs_get_inode_by_path(char *path)
+{
+    char *path_n = sufs_libfs_upath_to_lib_path(path);
+
+    if (path_n != NULL)
+    {
+        return sufs_libfs_sys_get_inode_by_path(sufs_libfs_current_proc(),
+                                                 path_n);
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+
+int sufs_libfs_commit(int fd)
+{
+    if (sufs_libfs_is_lib_fd(fd))
+    {
+        return sufs_libfs_sys_commit(sufs_libfs_current_proc(),
+                                        sufs_libfs_ufd_to_lib_fd(fd));
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+int sufs_libfs_commit_by_path(char *path)
+{
+    char *path_n = sufs_libfs_upath_to_lib_path(path);
+
+    if (path_n != NULL)
+    {
+        return sufs_libfs_sys_commit_by_path(sufs_libfs_current_proc(),
+                                                path_n);
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+int sufs_unmap_by_path(char * path)
+{
+    char *path_n = sufs_libfs_upath_to_lib_path(path);
+
+    if (path_n != NULL)
+    {
+        return sufs_libfs_sys_unmap_by_path(sufs_libfs_current_proc(),
+                                                path_n);
+    }
+    else
+    {
+        return -1;
+    }
+}
 
 
 static void sufs_libfs_do_proc_init(void)
@@ -582,22 +673,14 @@ static void sufs_libfs_handle_env(void)
 static void sufs_libfs_premap_files(char * str)
 {
     char * file_str = NULL;
-    int fd = 0, cpu = 0;
+    int fd = 0;
 
     while ((file_str = strsep(&str, ",")) != NULL)
     {
-        /*
-        sufs_libfs_pin_to_core(cpu);
-        cpu++;
-        */
-
         fd = open(file_str, O_RDWR);
 
         if (fd > 0)
         {
-#if 0
-        printf("premap file: %s\n", file_str);
-#endif
             close(fd);
         }
     }
@@ -605,7 +688,7 @@ static void sufs_libfs_premap_files(char * str)
 
 __attribute__ ((constructor))
 void sufs_libfs_init(void)
-{
+{    
     sufs_libfs_handle_env();
 
     sufs_libfs_init_orig_function();
@@ -641,6 +724,8 @@ void sufs_libfs_init(void)
     sufs_libfs_ring_buffer_connect(&sufs_libfs_sb);
 
     sufs_libfs_premap_files(sufs_libfs_premap_str);
+
+
 
 #if 0
     {

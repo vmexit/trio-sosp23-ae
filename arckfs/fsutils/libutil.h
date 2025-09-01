@@ -6,7 +6,8 @@
 #include <string.h>
 
 #define SUFS_DEV_PATH "/dev/supremefs"
-#define SUFS_CMD_DEBUG_INIT    0x2001
+#define SUFS_CMD_INIT       0x2001
+#define SUFS_CMD_SOFT_INIT  0x2002
 
 #define die(...) do { \
     fprintf(stderr, __VA_ARGS__); \

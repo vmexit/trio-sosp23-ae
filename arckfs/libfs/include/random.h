@@ -40,7 +40,6 @@ static inline u32 sufs_libfs_xor_random(void)
 
     if (v == 0)
     {
-//        v = pthread_self();
         v = sufs_libfs_rdtsc() & 0xffffffff;
     }
 

@@ -17,7 +17,6 @@
 #define SUFS_LIBFS_RA_TYPE_NONE 0
 #define SUFS_LIBFS_RA_TYPE_SET 1
 
-/* need to think of the synchronization issue here */
 struct sufs_libfs_ra_node
 {
         unsigned long *child;

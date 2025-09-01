@@ -6,8 +6,7 @@
 
 #include "../../include/libfs_config.h"
 
-/* FIXME: Need to verify no complicts */
-/* (xv6) no need for lowest FD */
+
 #define O_ANYFD 0x1000
 
 #define SUFS_LIBFS_FILETABLE_CPUSHIFT 16
@@ -53,23 +52,7 @@ static inline struct sufs_libfs_fdinfo sufs_libfs_fdinfo_with_locked(
 
 struct sufs_libfs_filetable
 {
-        /* TODO: alignment */
         struct sufs_libfs_fdinfo info_[SUFS_MAX_CPU][SUFS_LIBFS_MAX_FD];
-
-        /*
-         * In addition to storing O_CLOEXEC with each fdinfo so it can be
-         * read atomically with the FD, we store it separately so we can
-         * scan for keep-exec FDs without reading from info_, which would
-         * cause unnecessary sharing between the scan and creating O_CLOEXEC
-         * FDs.  To avoid unnecessary sharing on this array itself, the
-         * *default* state of this array for closed FDs must be 'true', so
-         * we only have to write to it when opening a keep-exec FD.
-         * Modifications to this array are protected by the fdinfo lock.
-         * Lock-free readers should double-check the O_CLOEXEC bit in
-         * fdinfo.
-         */
-
-        /* TODO: alignment */
         bool cloexec_[SUFS_MAX_CPU][SUFS_LIBFS_MAX_FD];
 };
 

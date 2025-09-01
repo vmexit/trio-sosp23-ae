@@ -19,10 +19,6 @@ void sufs_kfs_init_ring_buffers(int nodes)
     /* allocate the space for counter */
     for (i = 0; i < SUFS_MAX_THREADS; i++)
     {
-        int socket = 0;
-
-        /* socket = i / sufs_sb.cpus_per_socket; */
-
         sufs_kfs_allocate_pages(SUFS_ODIN_ONE_CNT_RING_SIZE, NUMA_NO_NODE,
                 (unsigned long **) &(sufs_kfs_counter_addr[i]),
                 &(sufs_kfs_counter_pg[i]));
@@ -39,13 +35,10 @@ void sufs_kfs_init_ring_buffers(int nodes)
                     (unsigned long **) &(sufs_kfs_buffer_ring_kaddr[index]),
                     &(sufs_kfs_buffer_ring_pg[index]));
 
-            sufs_kfs_ring_buffer[i][j] = sufs_kfs_sr_create(index,
-                            sizeof(struct sufs_delegation_request));
-
-#if 0
-            printk("node: %d, cpu: %d, kaddr: %lx\n",
-                    i, j, (unsigned long) sufs_kfs_ring_buffer[i][j]);
-#endif
+            sufs_kfs_ring_buffer[i][j] = 
+                sufs_kfs_sr_create((void *)(sufs_kfs_buffer_ring_kaddr[index]),
+                                        sizeof(struct sufs_delegation_request),
+                                                      SUFS_ODIN_ONE_RING_SIZE);
         }
     }
 }

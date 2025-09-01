@@ -60,15 +60,6 @@ unsigned int sufs_libfs_do_read_delegation(struct sufs_libfs_super_block *sb,
     SUFS_LIBFS_DEFINE_TIMING_VAR(send_request_time);
 #endif
 
-    /*
-     * access the user address while still at the process's address space
-     * to let the kernel handles various situations: e.g., page not mapped,
-     * page swapped out.
-     *
-     * Surprisingly, the overhead of this part is significant. However,
-     * currently it looks to me no point to optimize this part; The bottleneck
-     * is in the delegation thread, not the main thread.
-     */
 
 #if 0
     SUFS_LIBFS_START_TIMING(pre_fault_r_t, prefault_time);
@@ -78,17 +69,9 @@ unsigned int sufs_libfs_do_read_delegation(struct sufs_libfs_super_block *sb,
     {
         unsigned long target_addr = i;
 
-        /*
-         * Do not access an address that is out of the buffer provided by the
-         * user
-         */
-
         if (i > uaddr + bytes - 1)
             target_addr = uaddr + bytes - 1;
-#if 0
-        printf("uaddr: %lx, bytes: %ld, target_addr: %lx\n", uaddr, bytes,
-                target_addr);
-#endif
+
 
         *((char *) target_addr) = 0;
 
@@ -97,17 +80,11 @@ unsigned int sufs_libfs_do_read_delegation(struct sufs_libfs_super_block *sb,
     SUFS_LIBFS_END_TIMING(pre_fault_r_t, prefault_time);
 #endif
 
-    /*
-     * We have ensured that [kaddr, kaddr + bytes - 1) falls in the same
-     * kernel page.
-     */
 
-    /* which socket to delegate */
 
     block = sufs_libfs_offset_to_block(offset);
     pm_node = sufs_libfs_block_to_pm_node(sb, block);
 
-    /* inc issued cnt */
     issued_cnt[pm_node]++;
 
     request.type = SUFS_DELE_REQUEST_READ;
@@ -154,17 +131,7 @@ unsigned int sufs_libfs_do_write_delegation(struct sufs_libfs_super_block * sb,
     SUFS_LIBFS_DEFINE_TIMING_VAR(send_request_time);
 #endif
 
-    /* TODO: Check the validity of the user-level address */
 
-    /*
-   * access the user address while still at the process's address space
-   * to let the kernel handles various situations: e.g., page not mapped,
-   * page swapped out.
-   *
-   * Surprisingly, the overhead of this part is significant. However,
-   * currently it looks to me no point to optimize this part; The bottleneck
-   * is in the delegation thread, not the main thread.
-   */
     if (!zero)
     {
 #if 0
@@ -219,18 +186,6 @@ unsigned int sufs_libfs_do_write_delegation(struct sufs_libfs_super_block * sb,
     request.level = completed_level;
 
 #if 0
-    printf("LibFS pm_node: %d, thread: %d, ring_address: %lx\n",
-            pm_node, thread, (unsigned long)
-            sufs_libfs_ring_buffers[pm_node][thread]);
-
-    printf("LibFS send request request.type: %d, request.uaddr: %lx, "
-            "request.offset: %lx, request.bytes: %ld, request.zero: %d, "
-            "request.flush_cache: %d, request.notify_idx: %d\n",
-            request.type, request.uaddr, request.offset, request.bytes,
-            request.zero, request.flush_cache, request.notify_idx);
-#endif
-
-#if 0
     SUFS_LIBFS_START_TIMING(send_request_w_t, send_request_time);
 #endif
     do
@@ -251,14 +206,6 @@ void sufs_libfs_complete_delegation(struct sufs_libfs_super_block *sb,
         long * issued_cnt, struct sufs_notifyer * completed_cnt)
 {
     int i = 0;
-
-#if 0
-    for (i = 0; i < sb->pm_nodes; i++)
-    {
-        printf("i: %d, completed_cnt_addr: %lx\n", i,
-                (unsigned long) &(completed_cnt[i].cnt));
-    }
-#endif
 
     for (i = 0; i < sb->pm_nodes; i++)
     {

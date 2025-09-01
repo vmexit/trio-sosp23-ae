@@ -2,7 +2,7 @@
 
 sudo -v
 
-subdirs=(kfs libfs libfsfd libfskv fsutils)
+subdirs=(checker kfs libfsfd libfskv fsutils)
 
 for i in ${subdirs[@]}
 do 

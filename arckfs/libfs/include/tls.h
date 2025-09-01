@@ -9,8 +9,9 @@
 #include "../../include/libfs_config.h"
 #include "util.h"
 
-/* TODO: Make this adjust to sufs_libfs_timing_category */
-/* Please make sure the below struct is cache-aligned */
+// Forward declaration
+struct sufs_libfs_chainhash_item_free_batch; 
+
 struct sufs_libfs_stat
 {
     unsigned long time[4];
@@ -24,7 +25,13 @@ struct sufs_libfs_tls
     int cpt_idx;
     struct sufs_notifyer * cpt_cnt;
 
-    char pad[48];
+    int urcu_init_done;
+
+    int urcu_gp_count; // Number of quiescent states passed.
+
+    struct sufs_libfs_chainhash_item_free_batch* urcu_gp_batch;
+
+    char pad[32];
 
     struct sufs_libfs_stat stat;
 };
@@ -39,7 +46,7 @@ static inline int sufs_libfs_tls_my_index(void)
 
     if (ret == -1)
     {
-        sufs_libfs_my_thread = sufs_libfs_gettid() - sufs_libfs_btid;
+        sufs_libfs_my_thread = sufs_libfs_current_cpu();
         ret = sufs_libfs_my_thread;
     }
 

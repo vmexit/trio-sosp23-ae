@@ -81,4 +81,20 @@ static inline int sufs_libfs_sys_open(struct sufs_libfs_proc *proc, char *path,
     return sufs_libfs_sys_openat(proc, AT_FDCWD, path, flags, mode);
 }
 
+void * sufs_libfs_sys_get_inode(struct sufs_libfs_proc *proc, int fd);
+
+void * sufs_libfs_sys_get_dentry(struct sufs_libfs_proc *proc, int fd);
+
+void *sufs_libfs_sys_get_inode_by_path(struct sufs_libfs_proc *proc, 
+                                       char * path);
+
+void *sufs_libfs_sys_get_dentry_by_path(struct sufs_libfs_proc *proc, 
+                                        char *path);
+
+int sufs_libfs_sys_commit(struct sufs_libfs_proc *proc, int fd);
+
+int sufs_libfs_sys_commit_by_path(struct sufs_libfs_proc *proc, char * path);
+
+
+
 #endif /* SUFS_SYSCALL_H_ */

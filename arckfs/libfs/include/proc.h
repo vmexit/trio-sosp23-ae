@@ -1,9 +1,13 @@
 #ifndef SUFS_LIBFS_PROC_H_
 #define SUFS_LIBFS_PROC_H_
 
+#include <stdlib.h>
+
 #include "../../include/libfs_config.h"
-#include "mnode.h"
 #include "filetable.h"
+
+/* Forward declaration to break circular dependency */
+struct sufs_libfs_mnode;
 
 struct sufs_libfs_proc_list_entry
 {

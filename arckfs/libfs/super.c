@@ -29,9 +29,4 @@ void sufs_libfs_init_super_block(struct sufs_libfs_super_block * sb)
     {
         sufs_libfs_delegation = 1;
     }
-
-#if 0
-    printf("sb->pm_nodes: %d, sb->sockets: %d, sb->cpus_per_socket: %d\n",
-            sb->pm_nodes, sb->sockets, sb->cpus_per_socket);
-#endif
 }

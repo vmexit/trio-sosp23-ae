@@ -26,7 +26,7 @@ sufs_libfs_irange_lock_free(struct sufs_libfs_irange_lock *lock)
 }
 
 
-static inline void
+static inline void  
 sufs_libfs_irange_lock_read_lock(struct sufs_libfs_irange_lock *lock,
         unsigned long start_seg, unsigned long end_seg)
 {
@@ -56,7 +56,7 @@ sufs_libfs_irange_lock_read_unlock(struct sufs_libfs_irange_lock *lock,
 
     for (i = start_seg; i < end_seg; i++)
     {
-        sufs_libfs_bravo_read_unlock(&(lock->sg_table[i]));
+        sufs_libfs_bravo_read_unlock(&(lock->sg_table[i]), -1);
     }
 }
 

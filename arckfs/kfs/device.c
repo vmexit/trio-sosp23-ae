@@ -11,14 +11,8 @@
 #include "mmap.h"
 #include "inode.h"
 #include "balloc.h"
+#include "checker.h"
 
-/*
- * How many pm devices supremefs kernel module is responsible for? */
-/* 1: /dev/dax0.0,
- * 2: /dev/dax0.0, /dev/dax1.0
- * 4: /dev/dax0.0, /dev/dax1.0 ... /dev/dax3.0
- * 8: /dev/dax0.0, /dev/dax1.0 ... /dev/dax7.0
- */
 
 int pm_nr = 0;
 module_param(pm_nr, int, S_IRUGO);
@@ -28,7 +22,7 @@ int sufs_kfs_dele_thrds = 0;
 module_param(sufs_kfs_dele_thrds, int, S_IRUGO);
 MODULE_PARM_DESC(sufs_kfs_dele_thrds, "Number of delegation threads");
 
-static int sufs_kfs_do_init(void);
+static int sufs_kfs_do_init(int soft);
 
 static long sufs_kfs_ioctl(struct file *file, unsigned int cmd,
         unsigned long arg)
@@ -62,13 +56,28 @@ static long sufs_kfs_ioctl(struct file *file, unsigned int cmd,
         case SUFS_CMD_CHMOD:
             return sufs_chmod(arg);
 
+        case SUFS_CMD_COMMIT:
+            return sufs_commit(arg);
+
         case SUFS_CMD_DEBUG_READ:
             return sufs_debug_read();
 
-        case SUFS_CMD_DEBUG_INIT:
-            return sufs_kfs_do_init();
+        case SUFS_CMD_INIT:
+            return sufs_kfs_do_init(0);
+        
+        case SUFS_CMD_SOFT_INIT:
+            return sufs_kfs_do_init(1);
 
-        default:
+        case SUFS_CMD_CHECKER_MAP:
+            return sufs_checker_map(arg);
+
+        case SUFS_CMD_GET_RENAME_LEASE:
+            return sufs_kfs_acquire_rename_lease(&sufs_kfs_rename_lease);
+
+        case SUFS_CMD_FREE_RENAME_LEASE:
+            return sufs_kfs_release_rename_lease(&sufs_kfs_rename_lease);
+
+        default: 
             printk("%s: unsupported command %x\n", __func__, cmd);
     }
 
@@ -86,12 +95,6 @@ static dev_t sufs_dev_t;
 
 static int sufs_hardware_check(void)
 {
-    /*
-     * While there is many other instructions,
-     * clwb is the most widely used and efficient one. So just complain if
-     * there is no clwb support for now
-     */
-
 #if SUFS_CLWB_FLUSH
     if (!static_cpu_has(X86_FEATURE_CLWB))
     {
@@ -139,7 +142,6 @@ static int sufs_init(void)
 
     if (IS_ERR(sufs_class = class_create(THIS_MODULE, SUFS_DEV_NAME)))
     {
-        /* TODO: error macro */
         printk("Error in class_create!\n");
         ret = PTR_ERR(sufs_class);
         goto out_chrdev;
@@ -158,7 +160,6 @@ static int sufs_init(void)
 
     return 0;
 
-out_error:
     device_destroy(sufs_class, sufs_dev_t);
 
 out_class:
@@ -170,11 +171,7 @@ out_chrdev:
     return -ENOMEM;
 }
 
-/*
- * We cannot run the below code in sufs_init function since if we compile the
- * module as built-in, it cannot open "/dev/dax*.0" during kernel boot up
- */
-static int sufs_kfs_do_init(void)
+static int sufs_kfs_do_init(int soft)
 {
     int ret = 0;
 
@@ -183,7 +180,7 @@ static int sufs_kfs_do_init(void)
     if (sufs_init_dev(pm_nr) != 0)
         return -ENOMEM;
 
-    if ((ret = sufs_fs_init()) == 0)
+    if ((ret = sufs_fs_init(soft)) == 0)
     {
         printk("sufs do init succeed!\n");
     }

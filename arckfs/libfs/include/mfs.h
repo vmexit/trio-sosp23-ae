@@ -7,8 +7,7 @@
 #include "types.h"
 #include "balloc.h"
 #include "ialloc.h"
-
-extern u64 sufs_root_mnum;
+#include "proc.h"
 
 extern struct sufs_libfs_mnode *sufs_libfs_root_dir;
 
@@ -16,52 +15,48 @@ extern atomic_char *sufs_libfs_inode_mapped_attr;
 
 extern atomic_char * sufs_libfs_inode_has_index;
 
+
 extern pthread_spinlock_t * sufs_libfs_inode_map_lock;
 
 struct sufs_libfs_mnode* sufs_libfs_namex(struct sufs_libfs_mnode *cwd,
-        char *path, bool nameiparent, char *name);
+        char *path, bool nameiparent, char *name, int map);
 
 static inline struct sufs_libfs_mnode* sufs_libfs_namei(
-        struct sufs_libfs_mnode *cwd, char *path)
+        struct sufs_libfs_mnode *cwd, char *path, int map)
 {
-    /* TODO: can this buf moved */
     char buf[SUFS_NAME_MAX];
-    return sufs_libfs_namex(cwd, path, false, buf);
+    return sufs_libfs_namex(cwd, path, false, buf, map);
 }
 
 static inline struct sufs_libfs_mnode* sufs_libfs_nameiparent(
-        struct sufs_libfs_mnode *cwd, char *path, char *buf)
+        struct sufs_libfs_mnode *cwd, char *path, char *buf, int map)
 {
-    return sufs_libfs_namex(cwd, path, true, buf);
+    return sufs_libfs_namex(cwd, path, true, buf, map);
 }
 
-/* BUG: Using a bit is wrong, should make it use a counter */
-static inline void sufs_libfs_file_enter_cs(struct sufs_libfs_mnode *m)
+static inline int sufs_libfs_file_should_release(struct sufs_libfs_mnode *m)
 {
-    /* sufs_libfs_bm_set_bit((char*) SUFS_LEASE_RING_ADDR, m->ino_num); */
+        int wanted = sufs_libfs_bm_test_bit((atomic_char*)              
+                SUFS_WANTED_RING_ADDR, m->ino_num); 
+
+        unsigned long * lease_time = 
+                (unsigned long *) SUFS_DDL_RING_ADDR;
+
+        return (wanted && (sufs_libfs_rdtsc() > lease_time[m->ino_num]));
 }
 
-static inline void sufs_libfs_file_exit_cs(struct sufs_libfs_mnode *m)
+static inline int sufs_libfs_file_is_real_mapped(struct sufs_libfs_mnode *m)
 {
-    /* sufs_libfs_bm_clear_bit((char*) SUFS_LEASE_RING_ADDR, m->ino_num); */
+    return ( sufs_libfs_bm_test_bit((atomic_char*) SUFS_MAPPED_RING_ADDR, 
+             m->ino_num)); 
 }
 
 static inline int sufs_libfs_file_is_mapped(struct sufs_libfs_mnode *m)
 {
-#if 0
-    if (m->ino_num != 2 && m->ino_num !=3 && !sufs_libfs_is_inode_allocated(m->ino_num))
-    {
-        printf("id: %lx, Not what we allocated: %d\n", pthread_self(), m->ino_num);
-        while (1);
-    }
-#endif
-#if 0
-    printf("sufs_libfs_bm_test_bit: inode: %d, val: %d\n", m->ino_num,
-            sufs_libfs_bm_test_bit((char*) SUFS_MAPPED_RING_ADDR, m->ino_num));
-#endif
-    return (sufs_libfs_is_inode_allocated(m->ino_num) ||
-           (sufs_libfs_bm_test_bit((atomic_char*) SUFS_MAPPED_RING_ADDR, m->ino_num)
-            && sufs_libfs_bm_test_bit(sufs_libfs_inode_has_index, m->ino_num)
+    return (!m || sufs_libfs_is_inode_allocated(m->ino_num) ||
+           (sufs_libfs_bm_test_bit((atomic_char*) SUFS_MAPPED_RING_ADDR, 
+             m->ino_num) && 
+             sufs_libfs_bm_test_bit(sufs_libfs_inode_has_index, m->ino_num)
             ));
 }
 
@@ -114,8 +109,8 @@ int sufs_libfs_map_file(struct sufs_libfs_mnode *m, int writable);
 
 int sufs_libfs_do_map_file(struct sufs_libfs_mnode *m, int writable);
 
-int sufs_libfs_upgrade_file_map(struct sufs_libfs_mnode *m);
-
 void sufs_libfs_file_build_index(struct sufs_libfs_mnode *m);
+
+int sufs_libfs_sys_unmap_by_path(struct sufs_libfs_proc *proc, char * path);
 
 #endif /* SUFS_MFS_H_ */

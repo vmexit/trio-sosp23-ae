@@ -13,7 +13,6 @@
 
 int sufs_kfs_agent_init = 0;
 
-/* Adhoc code here, need to refine once we support multiple processes */
 struct mm_struct * sufs_kfs_mm = NULL;
 unsigned long sufs_kfs_counter_addr[SUFS_MAX_THREADS];
 struct page * sufs_kfs_counter_pg[SUFS_MAX_THREADS];
@@ -33,10 +32,7 @@ static struct sufs_kfs_agent_args sufs_kfs_agent_args[SUFS_KFS_MAX_AGENT];
 
 static int sufs_kfs_num_of_agents = 0;
 
-/*
- * Very surprised to find that there is no such function in the kernel and I
- * need to write this function myself.
- */
+
 static unsigned long user_virt_addr_to_phy_addr(struct mm_struct *mm,
                         unsigned long uaddr)
 {
@@ -97,7 +93,6 @@ static unsigned long user_virt_addr_to_phy_addr(struct mm_struct *mm,
         return (phys_page_addr | offset);
     }
 
-    /* weird, why there is a _kernel suffix */
     pte = pte_offset_kernel(pmd, uaddr);
     if (!pte_present(*pte))
         goto out;
@@ -120,9 +115,6 @@ static int create_agent_tasks(struct mm_struct *mm, unsigned long uaddr,
 
     i = uaddr;
 
-#if 0
-    printk("begin: uaddr: %lx, bytes: %ld\n", uaddr, bytes);
-#endif
 
     while (i < uaddr + bytes)
     {
@@ -131,7 +123,6 @@ static int create_agent_tasks(struct mm_struct *mm, unsigned long uaddr,
 
         if (phy_addr == 0)
         {
-            /* This should not happen */
             goto out;
         }
 
@@ -144,28 +135,12 @@ static int create_agent_tasks(struct mm_struct *mm, unsigned long uaddr,
 
         kuaddr = (unsigned long)phys_to_virt(phy_addr);
 
-#if 0
-    printk("i: %lx, phy_addr: %lx, kuaddr: %lx, size: %ld\n",
-            i, phy_addr, kuaddr, size);
-#endif
-
         if ((tasks_index == 0) ||
             (kuaddr != tasks[tasks_index - 1].kuaddr +
                        tasks[tasks_index - 1].size))
         {
             if (tasks_index >= SUFS_KFS_AGENT_TASK_MAX_SIZE)
             {
-#if 0
-                int j = 0;
-
-                printk("uaddr: %lx, bytes: %ld, kuaddr: %lx\n", uaddr, bytes, kuaddr);
-
-                for (j = 0; j < tasks_index; j++)
-                {
-                    printk("index: %d, kuaddr: %lx, size: %ld\n", j,
-                            tasks[j].kuaddr, tasks[j].size);
-                }
-#endif
                 /* This should not happen */
                 printk("End: tasks_index overflow!\n");
                 goto out;
@@ -174,11 +149,6 @@ static int create_agent_tasks(struct mm_struct *mm, unsigned long uaddr,
             tasks[tasks_index].kuaddr = kuaddr;
             tasks[tasks_index].size = size;
             tasks_index++;
-
-#if 0
-    printk("index: %d, kuaddr: %lx, size: %ld\n",
-            tasks_index, kuaddr, size);
-#endif
         }
         else
         {
@@ -189,9 +159,6 @@ static int create_agent_tasks(struct mm_struct *mm, unsigned long uaddr,
         i += size;
     }
 
-#if 0
-    printk("End with tasks_index: %d\n", tasks_index);
-#endif
 
     return tasks_index;
 
@@ -208,11 +175,6 @@ static void do_read_request(struct mm_struct *mm, unsigned long offset,
 
     struct sufs_kfs_agent_tasks tasks[SUFS_KFS_AGENT_TASK_MAX_SIZE];
 
-#if 0
-    printk("kaddr: %lx, uaddr: %lx, bytes: %ld, zero: %d\n", kaddr, uaddr, bytes, zero);
-#endif
-
-
     SUFS_KFS_DEFINE_TIMING_VAR(address_translation_time);
     SUFS_KFS_DEFINE_TIMING_VAR(memcpy_time);
 
@@ -223,10 +185,6 @@ static void do_read_request(struct mm_struct *mm, unsigned long offset,
     if (tasks_index <= 0)
         goto out;
 
-#if 0
-    printk("kaddr: %lx, uaddr: %lx, bytes: %ld", kaddr, uaddr, bytes);
-#endif
-
     SUFS_KFS_START_TIMING(agent_memcpy_r_t, memcpy_time);
     for (i = 0; i < tasks_index; i++)
     {
@@ -236,11 +194,6 @@ static void do_read_request(struct mm_struct *mm, unsigned long offset,
         }
         else
         {
-#if 0
-            printk("uaddr: %lx, size: %ld, kaddr: %lx\n", tasks[i].kuaddr,
-                    tasks[i].size, kaddr);
-#endif
-
             memcpy((void *)tasks[i].kuaddr, (void *)kaddr, tasks[i].size);
             kaddr += tasks[i].size;
         }
@@ -259,7 +212,6 @@ out:
  * Memset: nt
  * others: clwb
  *
- * TODO: Need to think of how to do sfence in this case
  */
 static void do_write_request(struct mm_struct *mm, unsigned long offset,
                  unsigned long uaddr, unsigned long bytes, int zero,
@@ -275,10 +227,6 @@ static void do_write_request(struct mm_struct *mm, unsigned long offset,
 
     SUFS_KFS_DEFINE_TIMING_VAR(address_translation_time);
     SUFS_KFS_DEFINE_TIMING_VAR(memcpy_time);
-
-#if 0
-    printk("kaddr: %lx, uaddr: %lx, bytes: %ld, zero: %d\n", kaddr, uaddr, bytes, zero);
-#endif
 
     if (zero)
     {
@@ -304,18 +252,10 @@ static void do_write_request(struct mm_struct *mm, unsigned long offset,
 
     if (tasks_index <= 0)
         goto out;
-#if 0
-    printk("kaddr: %lx, uaddr: %lx, bytes: %ld", kaddr, uaddr, bytes);
-#endif
 
     SUFS_KFS_START_TIMING(agent_memcpy_w_t, memcpy_time);
     for (i = 0; i < tasks_index; i++)
     {
-#if 0
-        printk("uaddr: %lx, size: %ld, kaddr: %lx\n", tasks[i].kuaddr,
-                tasks[i].size, kaddr);
-#endif
-
         memcpy((void *)kaddr, (void *)tasks[i].kuaddr, tasks[i].size);
 
         kaddr += tasks[i].size;
@@ -330,16 +270,6 @@ static void do_write_request(struct mm_struct *mm, unsigned long offset,
 
 out:
     atomic_inc(notify_cnt);
-
-#if 0
-    printk("notify_cnt is %lx, notify_idx: %d pm_node: %d kfs_counter_addr: %lx\n",
-            (unsigned long) notify_cnt, notify_idx, pm_node,
-            sufs_kfs_counter_addr[notify_idx]);
-
-    printk("value of notify_cnt is %d\n",
-            atomic_read(notify_cnt));
-
-#endif
 
     return;
 }
@@ -359,7 +289,7 @@ static int agent_func(void *arg)
         SUFS_KFS_START_TIMING(agent_receive_request_t, recv_request_time);
 
 try_again:
-        err = sufs_kfs_sr_receive_request(ring, &request);
+        err = sufs_kfs_sr_receive_request(ring, &request, 0);
 
         if (err == -SUFS_RBUFFER_AGAIN)
         {
@@ -386,10 +316,6 @@ try_again:
 
         if (kthread_should_stop())
             break;
-
-#if 0
-        printk("ring address is %lx\n", (unsigned long) ring);
-#endif
 
         if (request.type == SUFS_DELE_REQUEST_READ)
         {
@@ -464,7 +390,6 @@ void sufs_kfs_init_agents(struct sufs_super_block * sufs_sb)
     {
         for (j = 0; j < sufs_kfs_dele_thrds; j++)
         {
-            /* Use the first few cpus of each socket */
             int target_cpu = i * cpus_per_socket + j;
             int index = i * sufs_kfs_dele_thrds + j;
 

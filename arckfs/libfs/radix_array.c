@@ -12,7 +12,10 @@ static void sufs_libfs_radix_array_init_upper_node(
     int size = sizeof(struct sufs_libfs_ra_node)
             + (ra->upper_fanout) * sizeof(unsigned long);
 
-    posix_memalign((void**) upper_ptr, 8, size);
+    if (posix_memalign((void**) upper_ptr, 8, size) != 0)
+    {
+        abort();
+    }
 
     memset((void*) (*upper_ptr), 0, size);
 
@@ -37,11 +40,6 @@ void sufs_libfs_init_radix_array(struct sufs_libfs_radix_array *ra,
     ra->levels = sufs_libfs_ra_num_levels(ra, 0) - 1;
 
     ra->root_ = 0;
-
-#if 0
-      sufs_libfs_radix_array_init_upper_node(ra,
-            (struct sufs_libfs_ra_node**) &ra->root_);
-#endif
 }
 
 unsigned long sufs_libfs_radix_array_find(
@@ -136,7 +134,6 @@ void sufs_libfs_radix_array_free_recursive(struct sufs_libfs_radix_array *ra,
         }
     }
 
-    /* Do not free the root */
     if (level != ra->levels)
         free(unode);
 

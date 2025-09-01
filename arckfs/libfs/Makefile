@@ -1,18 +1,14 @@
 # https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
 
-#ASAN_OPTIONS=verify_asan_link_order=0
-#CFLAGS = -O0 -g -pthread -Iinclude/ -Wunused -fsanitize=address
 #CFLAGS = -O0 -g -pthread -Iinclude/ -Wunused
-CFLAGS = -Ofast -pthread -Iinclude/ -Wunused -ltcmalloc_minimal
-
-#LDFLAGS = -shared -pthread -O0 -g -ldl -lnuma -fsanitize=address
-#LDFLAGS = -shared -pthread -O0 -g -ldl -lnuma
-LDFLAGS = -shared -pthread -Ofast -ldl -lnuma -ltcmalloc_minimal
+CFLAGS = -Ofast -pthread -Iinclude/ -Wunused -ltcmalloc_minimal -lurcu-qsbr
+LDFLAGS = -shared -pthread -Ofast -ldl -lnuma -ltcmalloc_minimal -lurcu-qsbr
 
 TARGET=sufs.so
 
 OBJS = balloc.o \
-	   bravo.o \
+       bravop.o \
+	bravo.o \
        chainhash.o \
        cmd.o \
        delegation.o \
