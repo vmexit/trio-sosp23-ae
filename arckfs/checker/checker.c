@@ -391,6 +391,29 @@ static bool check_dir(int ino_num, unsigned long index_offset, int tgid,
                         CHECKER_DEBUG_PRINT("check_dir: duplicate name '%s'\n", d->name);
                         return false; 
                     }
+                    
+                    struct sufs_shadow_inode *d_si = get_shadow_inode(d->ino_num);
+
+                    if (d_si->parent != ino_num) {
+                        // In this case, LibFS renamed a file (d->ino_num) from old parent (d_si->parent) to new parent (ino_num).
+                        
+                        // The old parent (d_si->parent) must be the owned one because, after verification succeeds, 
+                        // we update `d_si->parent` to `ino_num`, which is treated as the ground truth.
+                        // If the old parent is not the owned one, the file could be renamed without proper permission.
+                        if (sufs_mapped_state[d_si->parent] != tgid) return false;
+
+                        // The new parent (ino_num) must not be a descendant of the renamed file (d->ino_num).
+                        // Otherwise, the renamed file is not guaranteed to be connected to the root via the new parent (ino_num)
+                        // and forms a disconnected cycle.
+                        if (d_si->file_type == SUFS_FILE_TYPE_DIR) {
+                            int curr = ino_num;
+                            while (curr != SUFS_ROOT_INODE) {
+                                if(curr == d->ino_num) return false;
+                                struct sufs_shadow_inode *si = get_shadow_inode(curr);
+                                curr = si->parent;
+                            }
+                        }
+                    }
                 }
 
                 d = (struct sufs_dir_entry *) ((unsigned long) d + d->rec_len);
