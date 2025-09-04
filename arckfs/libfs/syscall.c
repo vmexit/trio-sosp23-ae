@@ -196,6 +196,31 @@ void sufs_libfs_rename_complete_func(struct sufs_libfs_mnode *mdnew,
     mfold->parent_mnum = mdnew->ino_num;
 }
 
+int sufs_libfs_commit_mnode_cascade(struct sufs_libfs_mnode *m)
+{
+    unsigned long index_offset = 0; 
+
+    if (m->index_start)
+    {
+        index_offset = sufs_libfs_virt_addr_to_offset((unsigned long)   
+                m->index_start);
+    }
+
+    // Try to commit current mnode.
+    int ret = sufs_libfs_cmd_commit(m->ino_num, m->type, index_offset);
+
+    if (ret != -ELOOP) return ret;
+
+    // If ret is `-ELOOP`, then the commit is failed because the inode is newly created.
+    // Try to commit its parent first, and if succeed, re-commit, and return.
+    ret = sufs_libfs_commit_mnode_cascade(sufs_libfs_mnode_array[m->parent_mnum]);
+        
+    if (ret == SUFS_CHECKER_PASS_RET_CODE) {
+        ret = sufs_libfs_cmd_commit(m->ino_num, m->type, index_offset);
+        return ret;
+    }
+}
+
 int sufs_libfs_sys_rename(struct sufs_libfs_proc *proc, char *old_path,
         char *new_path)
 {
@@ -269,6 +294,12 @@ int sufs_libfs_sys_rename(struct sufs_libfs_proc *proc, char *old_path,
         struct sufs_libfs_mnode *md = mdnew;
         cross_dir_rename = 1; 
         sufs_libfs_cmd_acquire_rename_lease();
+        
+        // First commit the destination directory to avoid circular dependency in the verification order.
+        if (sufs_libfs_commit_mnode_cascade(mdnew) != SUFS_CHECKER_PASS_RET_CODE) {
+            ret = -1;
+            goto out;
+        }
 
         while (1)
         {
