@@ -1,6 +1,6 @@
 CFLAGS = -O0 -g -lurcu-qsbr
 
-TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs 
+TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs create create-file write-file
 
 LDFLAGS = -L../libfs -l:sufs.so -Wl,-R -Wl,../libfs/ -lurcu-qsbr
 

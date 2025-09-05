@@ -37,7 +37,7 @@ EXTRA_DIST = LICENSE
 
 ACLOCAL_AMFLAGS = -I m4
 AM_YFLAGS = -d
-filebench_sufs_LDADD = -ltcmalloc_minimal -lsufs
+filebench_sufs_LDADD = -ltcmalloc_minimal -lsufs -lurcu-qsbr
 
 if GCC_USED
 AM_CFLAGS = -Wall -Wno-unknown-pragmas

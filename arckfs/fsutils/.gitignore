@@ -11,3 +11,6 @@ touch
 init 
 mkdir-sufs
 ls-sufs
+create
+create-file
+write-file
