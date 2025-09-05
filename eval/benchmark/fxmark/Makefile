@@ -14,7 +14,7 @@ BIN = bin
 CFLAGS += $(DEFS) -Wall -g -O3 -D_GNU_SOURCE -pthread
 SUFSCFLAGS = -DSUFS
 LDFLAGS += -lnuma -pthread
-SUFSLDFLAGS = -ltcmalloc_minimal -lsufs
+SUFSLDFLAGS = -ltcmalloc_minimal -lsufs -lurcu-qsbr
 LIBS    = $(SRC)/bench.c $(SRC)/util.c
 TC      = $(SRC)/MWCM.c $(SRC)/MWCL.c \
 		  $(SRC)/DWAL.c $(SRC)/DWOL.c \
