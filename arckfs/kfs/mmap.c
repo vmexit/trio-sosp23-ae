@@ -501,6 +501,9 @@ static long sufs_do_mmap_file(struct sufs_super_block * sb, int ino,
 
     ret = sufs_map_file_pages(sb, sinode, vma, prop, tgid, ino);
 
+    // After `sufs_map_file_pages()` completes, allow other process to acquire the lease.
+    lease->lease_tsc[0] = 0;
+
     /* Upon successful map, set the ring and index offset*/
     if (ret == 0)
     {
