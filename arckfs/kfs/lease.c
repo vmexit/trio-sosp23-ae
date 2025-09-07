@@ -113,6 +113,10 @@ sufs_kfs_try_acquire (int ino, struct sufs_kfs_lease *l,
         struct sufs_ring_buffer * lease_ring = NULL;
         unsigned long *ddl_ring_addr = NULL;
 
+        // If other process is mapping in progress, wait until mapping finished.
+        if (l->lease_tsc[i] == -1UL) {
+            return -EAGAIN;
+        }
         if (l->lease_tsc[i] == 0)
         {
             unsigned long * wanted_ring_addr = 
@@ -198,6 +202,8 @@ int sufs_kfs_acquire_write_lease(int ino, struct sufs_kfs_lease *l,
         l->state = SUFS_KFS_WRITE_OWNED;
         l->owner_cnt = 1;
         l->owner[0] = tgid;
+        // Block other threads from acquiring a lease until the mapping completes.
+        l->lease_tsc[0] = -1UL;
     }
 
     sufs_spin_unlock(&(l->lock));
