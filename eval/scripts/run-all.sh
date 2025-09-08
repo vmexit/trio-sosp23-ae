@@ -2,11 +2,7 @@
 
 sudo -v
 
-./fio.sh 
+./single-thread.sh
 ./fxmark.sh 
-./filebench.sh 
-./filebench-sp.sh 
-./fig5.sh
-./dbench.sh
-
-./parse.sh
+./filebench-shared.sh 
+./sharing-cost.sh
