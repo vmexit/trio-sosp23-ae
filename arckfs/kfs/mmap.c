@@ -665,6 +665,23 @@ long sufs_do_real_unmap_file(struct sufs_super_block *sb,
             cred->uid.val, cred->gid.val);
         ret = sufs_get_result_from_checker(ino);
 
+        if (ret == SUFS_CHECKER_PASS_ONLY_IF_RENAMED_RET_CODE)
+        {   
+            // Checker reported that there was a directory relocation.
+            // check for the rename lease, and pass only if it is holding rename lease.
+            unsigned long flags = 0;
+
+            local_irq_save(flags);
+            sufs_spin_lock(&(sufs_kfs_rename_lease->lock));
+
+            if (sufs_kfs_rename_lease->owner[0] == tgid) {
+                ret = SUFS_CHECKER_PASS_RET_CODE;
+            }
+
+            sufs_spin_unlock(&(sufs_kfs_rename_lease->lock));
+            local_irq_restore(flags);
+        }
+
         /* passed */
         if (ret == SUFS_CHECKER_PASS_RET_CODE)
         {
@@ -953,6 +970,23 @@ static long sufs_do_commit(struct sufs_super_block *sb, int ino, char file_type,
     else
     {
         ret = SUFS_CHECKER_PASS_RET_CODE;
+    }
+
+    if (ret == SUFS_CHECKER_PASS_ONLY_IF_RENAMED_RET_CODE)
+    {   
+        // Checker reported that there was a directory relocation.
+        // check for the rename lease, and pass only if it is holding rename lease.
+        unsigned long flags = 0;
+        
+        local_irq_save(flags);
+        sufs_spin_lock(&(sufs_kfs_rename_lease->lock));
+        
+        if (sufs_kfs_rename_lease->owner[0] == tgid) {
+            ret = SUFS_CHECKER_PASS_RET_CODE;
+        }
+
+        sufs_spin_unlock(&(sufs_kfs_rename_lease->lock));
+        local_irq_restore(flags);
     }
 
     if (ret != SUFS_CHECKER_PASS_RET_CODE)
