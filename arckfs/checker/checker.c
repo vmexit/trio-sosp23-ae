@@ -349,7 +349,7 @@ bool is_disconnected(int ino_num, int tgid)
 }
 
 static bool check_dir(int ino_num, unsigned long index_offset, int tgid, 
-    int uid, int gid)
+    int uid, int gid, bool* is_dir_relocated)
 {
     struct sufs_fidx_entry *idx = NULL;
 
@@ -406,6 +406,7 @@ static bool check_dir(int ino_num, unsigned long index_offset, int tgid,
                         // Otherwise, the renamed file is not guaranteed to be connected to the root via the new parent (ino_num)
                         // and forms a disconnected cycle.
                         if (d_si->file_type == SUFS_FILE_TYPE_DIR) {
+                            *is_dir_relocated = true;
                             int curr = ino_num;
                             while (curr != SUFS_ROOT_INODE) {
                                 if(curr == d->ino_num) return false;
@@ -442,7 +443,7 @@ out:
 }
 
 static bool check_inode(int ino_num, char file_type, 
-    unsigned long index_offset, int tgid, int uid, int gid)
+    unsigned long index_offset, int tgid, int uid, int gid, bool* is_dir_relocated)
 {
     if (!is_inode_range_valid(ino_num)) {
         CHECKER_DEBUG_PRINT("check_inode: ino_num %d out of range\n", ino_num);
@@ -468,7 +469,7 @@ static bool check_inode(int ino_num, char file_type,
     }
     else if (file_type == SUFS_FILE_TYPE_DIR)
     {
-        bool ret = check_dir(ino_num, index_offset, tgid, uid, gid);
+        bool ret = check_dir(ino_num, index_offset, tgid, uid, gid, is_dir_relocated);
         if (!ret) {
             CHECKER_DEBUG_PRINT("check_inode: directory check failed (ino_num=%d, index_offset=%lx, tgid=%d uid=%d, gid=%d)\n", ino_num, index_offset, tgid, uid, gid);
         }
@@ -545,13 +546,20 @@ int main(int argc, char *argv[])
 #if 0
         printf("\nreceive request: ino_num=%d, file_type=%d, index_offset=%lx, tgid=%d, uid: %d, gid: %d\n", e.ino_num, e.file_type, e.index_offset, e.tgid, e.uid, e.gid);
 #endif
+        bool is_dir_relocated = false;
 
         ret = check_inode(e.ino_num, e.file_type, e.index_offset, e.tgid, 
-                e.uid, e.gid);
+                e.uid, e.gid, &is_dir_relocated);
 
         if (ret == true)
         {
-            e.ret = 0; 
+            // If there is a relocated directory into current inode (e.ino_num),
+            // then LibFS must hold the rename lease.
+            // Inform kernel to pass only if LibFS holds global rename lease.
+            if (is_dir_relocated) 
+                e.ret = SUFS_CHECKER_PASS_ONLY_IF_RENAMED_RET_CODE;
+            else 
+                e.ret = SUFS_CHECKER_PASS_RET_CODE; 
         }
         else 
         {
