@@ -696,6 +696,46 @@ long sufs_do_real_unmap_file(struct sufs_super_block *sb,
             /* revert to the checkpoint */
             sinode->index_offset = sinode->shadow_index_offset;
             sinode->shadow_index_offset = 0;
+
+            // If `ino` is old parent of renamed file, it's checkpoint may still have reference to renamed file.
+            // shadow inodes's parent is ground truth, fix it.
+
+            struct sufs_fidx_entry *idx = (struct sufs_fidx_entry *)
+                    sufs_kfs_offset_to_virt_addr(sinode->index_offset);
+
+            while (idx->offset != 0)
+            {
+                if (likely(sufs_is_norm_fidex(idx)))
+                {
+                    struct sufs_dir_entry *dir = (struct sufs_dir_entry *)
+                        sufs_kfs_offset_to_virt_addr(offset);
+
+                    while (dir->name_len != 0)
+                    {
+                        unsigned short rec_len = dir->rec_len;
+
+                        if (dir->ino_num != SUFS_INODE_TOMBSTONE) {
+                            struct sufs_shadow_inode *d_si = get_shadow_inode(dir->ino_num);
+                            if (d_si->parent != ino) {
+                                // This inode is no longer child of this inode. Fix it.
+                                dir->ino_num = SUFS_INODE_TOMBSTONE;
+                            } 
+                        }
+
+                        dir = (struct sufs_dir_entry *)((unsigned long)dir + rec_len);
+
+                        if (SUFS_KFS_FILE_BLOCK_OFFSET(dir) == 0)
+                            break;
+                    }
+
+                    idx++;
+                }
+                else
+                {
+                    idx = (struct sufs_fidx_entry*) sufs_kfs_offset_to_virt_addr(
+                            idx->offset);
+                }
+            }
         }
     }
 
@@ -977,7 +1017,7 @@ static long sufs_do_commit(struct sufs_super_block *sb, int ino, char file_type,
         // Checker reported that there was a directory relocation.
         // check for the rename lease, and pass only if it is holding rename lease.
         unsigned long flags = 0;
-        
+
         local_irq_save(flags);
         sufs_spin_lock(&(sufs_kfs_rename_lease->lock));
         
