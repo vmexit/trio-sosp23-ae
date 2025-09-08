@@ -23,7 +23,7 @@
 #include "rdtsc.h"
 
 /* Each application thread creates an 3GB file */
-#define PRIVATE_FILE_PAGE_NUM (786432)
+#define PRIVATE_FILE_PAGE_NUM (65536)
 
 static void set_test_file(struct worker *worker,
         char *test_file)

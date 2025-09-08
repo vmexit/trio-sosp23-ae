@@ -20,7 +20,8 @@ media  = {"ext4"      : "pmem-local",
           "odinfs"    : "pm-array", 
           "sufs"      : "pm-char-array",
           "sufs-fd"   : "pm-char-array",
-          "sufs-kv"   : "pm-char-array"
+          "sufs-kv"   : "pm-char-array",
+          "arckfs-plus": "pm-char-array",
           }
 
 

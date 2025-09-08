@@ -104,7 +104,8 @@ class Runner(object):
             "winefs",
             "sufs",
             "sufs-kv",
-            "sufs-fd"
+            "sufs-fd",
+            "arckfs-plus"
         ]
         self.MKFS_TYPES = {
             "ext2-no-jnl": "ext2",
@@ -292,6 +293,7 @@ class Runner(object):
             "sufs": self.mount_sufs,
             "sufs-kv": self.mount_sufs,
             "sufs-fd": self.mount_sufs,
+            "arckfs-plus": self.mount_sufs,
         }
         self.HOWTO_MKFS = {
             "ext2":
@@ -427,6 +429,12 @@ class Runner(object):
         print(log)
 
     def get_ncores(self, hint):
+        ncores = []
+        for i in range(1, 25):
+            ncores.append((i, 1))
+        for i in range(25, 49):
+            ncores.append((i, 2))
+        return ncores
         # if user specifies the specific number of cores he/she wants to run,
         # stop auto generate the core numbers
         if hint.isdigit():
@@ -523,7 +531,7 @@ class Runner(object):
         else:
             sys.exit("Unknown mode in init_pm")
 
-        for i in range(num):
+        for i in range(0, num*2, 2):
             path = ptemp % (i)
 
             if (os.path.exists(path) == False):
@@ -808,7 +816,7 @@ class Runner(object):
         if not mount_fn:
             return False
 
-        if fs != "sufs" and fs != "sufs-kv" and fs != "sufs-fd" and fs != "strata":
+        if fs != "sufs" and fs != "sufs-kv" and fs != "sufs-fd" and fs != "strata" and fs != "arckfs-plus":
             self.umount(mnt_path)
             self.exec_cmd("mkdir -p " + mnt_path, self.dev_null)
 
@@ -1061,7 +1069,7 @@ class Runner(object):
             self.test_root = "/mnt/pmem_emul"
         elif fs == "strata":
             self.test_root = "/mlfs/"
-        elif fs == "sufs" or fs == "sufs-kv" or fs == "sufs-fd":
+        elif fs == "sufs" or fs == "sufs-kv" or fs == "sufs-fd" or fs == "arckfs-plus":
             self.test_root = "/sufs/"
 
         if fs == "sufs":
@@ -1111,7 +1119,7 @@ class Runner(object):
             self.log_end()
             self.fxmark_cleanup()
 
-            if self.fs == "sufs" or self.fs == "sufs-kv" or self.fs == "sufs-fd":
+            if self.fs == "sufs" or self.fs == "sufs-kv" or self.fs == "sufs-fd" or self.fs == "arckfs-plus":
                 self.umount_sufs()
             elif self.fs == "odinfs":
                 self.umount(self.test_root)
