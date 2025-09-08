@@ -29,6 +29,7 @@
 #define unlikely(x)     __builtin_expect((x),0)
 #endif
 
+/* TODO: Port the actual implementation of WRITE_ONCE */
 #ifndef WRITE_ONCE
 #define WRITE_ONCE(x, val) ((x) = (val))
 #endif

@@ -45,6 +45,10 @@ static unsigned long sufs_libfs_append_entry_journal(unsigned long curr_p,
     entry = (struct sufs_libfs_journal_entry *)
             sufs_libfs_offset_to_virt_addr(curr_p);
 
+#if 0
+    printf("curr_p: %lx\n", curr_p);
+#endif
+
     /* Align to 8 bytes */
     aligned_field = (unsigned long *)((unsigned long)field & ~7UL);
 
@@ -67,7 +71,7 @@ void sufs_libfs_flush_journal(unsigned long head, unsigned long tail)
         struct sufs_libfs_journal_entry * entry =
                 (struct sufs_libfs_journal_entry *) sufs_libfs_offset_to_virt_addr(head);
 
-        sufs_libfs_clwb_buffer((void *) entry, tail - head, 0);
+        sufs_libfs_clwb_buffer((void *) entry, tail - head);
 
     }
     /* circular */
@@ -77,15 +81,19 @@ void sufs_libfs_flush_journal(unsigned long head, unsigned long tail)
                 (struct sufs_libfs_journal_entry *) sufs_libfs_offset_to_virt_addr(head);
 
         /* head to end */
-        sufs_libfs_clwb_buffer((void * ) entry, 
-            SUFS_PAGE_SIZE - (head & ~SUFS_PAGE_MASK), 0);
+        sufs_libfs_clwb_buffer((void * ) entry,
+                SUFS_PAGE_SIZE - (head & ~SUFS_PAGE_MASK));
 
         entry = (struct sufs_libfs_journal_entry *)
                 sufs_libfs_offset_to_virt_addr(tail);
 
         /* start to tail */
-        sufs_libfs_clwb_buffer((void*)(((unsigned long) entry) & SUFS_PAGE_MASK), tail & (~SUFS_PAGE_MASK), 0);
+        sufs_libfs_clwb_buffer((void*)(((unsigned long) entry) & SUFS_PAGE_MASK),
+            tail & (~SUFS_PAGE_MASK));
     }
+
+    /* Given TSO, this seems not needed */
+    /* sufs_libfs_sfence(); */
 }
 
 /* Journaled transactions for rename operations */
@@ -112,7 +120,7 @@ unsigned long sufs_libfs_create_rename_transaction(int cpu,
     sufs_libfs_flush_journal(pair->journal_head, temp);
 
     pair->journal_tail = temp;
-    sufs_libfs_clwb_buffer(&pair->journal_head, sizeof(pair->journal_head), 0);
+    sufs_libfs_clwb_buffer(&pair->journal_head, sizeof(pair->journal_head));
     sufs_libfs_sfence();
 
     return temp;
@@ -135,7 +143,10 @@ void sufs_libfs_commit_lite_transaction(int cpu, unsigned long tail)
 
     pair->journal_head = tail;
 
-    sufs_libfs_clwb_buffer(&pair->journal_head, sizeof(pair->journal_head), 0);
+    sufs_libfs_clwb_buffer(&pair->journal_head, sizeof(pair->journal_head));
+
+    /* Given TSO, this seems not needed */
+    sufs_libfs_sfence();
 }
 
 /**************************** Initialization ******************************/
@@ -206,8 +217,12 @@ void sufs_libfs_lite_journal_hard_init(struct sufs_libfs_super_block *sb)
 
         pair->journal_head = pair->journal_tail =
                 sufs_libfs_virt_addr_to_offset(content_addr);
+#if 0
+        printf("journal_head: %lx, journal_tail: %lx\n", pair->journal_head,
+                pair->journal_tail);
+#endif
 
-        sufs_libfs_clwb_buffer(pair, sizeof(struct sufs_libfs_journal_ptr_pair), 0);
+        sufs_libfs_clwb_buffer(pair, sizeof(struct sufs_libfs_journal_ptr_pair));
     }
 
     sufs_libfs_sfence();

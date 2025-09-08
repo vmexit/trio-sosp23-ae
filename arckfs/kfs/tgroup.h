@@ -4,7 +4,6 @@
 #include <linux/kernel.h>
 
 #include "../include/kfs_config.h"
-#include "../include/ring_buffer.h"
 
 extern char * sufs_kfs_pid_to_tgroups;
 
@@ -18,20 +17,14 @@ struct sufs_tgroup
 
     /* lease ring */
     unsigned long * lease_ring_kaddr;
-    struct sufs_ring_buffer * lease_ring;
-
-    /* wanted ring */
-    unsigned long * wanted_ring_kaddr;
-    struct page *   wanted_ring_pg;
+    struct page *   lease_ring_pg;
 
     /* map ring */
     unsigned long * map_ring_kaddr;
     struct page *   map_ring_pg;
 
-    /* deadline ring */
-    unsigned long * ddl_ring_kaddr;
-
     struct vm_area_struct * mount_vma;
+
 };
 
 int sufs_kfs_init_tgroup(void);

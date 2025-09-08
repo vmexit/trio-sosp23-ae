@@ -25,27 +25,17 @@ static inline void sufs_libfs_sfence(void)
     asm volatile ("sfence\n" : : );
 }
 
-static inline void sufs_libfs_clwb_buffer(void * ptr, unsigned int len, 
-    int reverse)
+static inline void sufs_libfs_clwb_buffer(void * ptr, unsigned int len)
 {
-    long i = 0;
+    unsigned int i = 0;
 
     /* align addr to cache line */
     unsigned long addr = CACHE_ROUND_DOWN((unsigned long) ptr);
 
     /* align len to cache line */
     len = CACHE_ROUND_UP(len);
-
-    if (!reverse)
-    {
-        for (i = 0; i < len; i += SUFS_CACHELINE)
-            sufs_libfs_mm_clwb(addr + i);
-    }
-    else
-    {
-        for (i = len - SUFS_CACHELINE; i >= 0; i -= SUFS_CACHELINE)
-            sufs_libfs_mm_clwb(addr + i);
-    }
+    for (i = 0; i < len; i += SUFS_CACHELINE)
+        sufs_libfs_mm_clwb(addr + i);
 }
 
 

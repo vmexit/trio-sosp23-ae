@@ -21,7 +21,10 @@ struct sufs_dev_arr
 
 int sufs_init_dev(int num);
 
-
+/*
+ * This function is in drivers/dax/super.c, exported by the kernel
+ * but no header to include it, nice ...
+ */
 struct dax_device *inode_dax(struct inode *inode);
 
 #endif /* SUFS_KFS_DEV_DAX_H_ */

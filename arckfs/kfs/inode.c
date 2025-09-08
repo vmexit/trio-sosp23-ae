@@ -4,10 +4,7 @@
 #include "../include/kfs_config.h"
 #include "../include/ioctl.h"
 #include "../include/common_inode.h"
-
-#include "checker.h"
 #include "inode.h"
-#include "tgroup.h"
 
 static inline int sufs_insert_inodetree(struct rb_root *tree,
         struct sufs_range_node *new_node)
@@ -519,6 +516,10 @@ alloc:
         return -ENOSPC;
     }
 
+    if (zero)
+    {
+        /* TODO: Do we need this for inode? */
+    }
 
     if (inode_nr)
         *inode_nr = new_inode_nr;
@@ -530,7 +531,12 @@ int sufs_alloc_inode_to_libfs(unsigned long uaddr)
 {
     struct sufs_ioctl_inode_alloc_entry entry;
 
-    int inode_nr = 0, ret = 0, cpu = 0, tgid = 0;
+    int inode_nr = 0, ret = 0, cpu = 0;
+
+    /*
+     * TODO: Should perform more checks here to validate the results
+     * obtained from the user
+     */
 
     if (copy_from_user(&entry, (void *) uaddr,
             sizeof(struct sufs_ioctl_inode_alloc_entry)))
@@ -544,12 +550,8 @@ int sufs_alloc_inode_to_libfs(unsigned long uaddr)
     if (ret < 0)
         return ret;
 
-    tgid = sufs_kfs_pid_to_tgid(current->tgid, 0);
-
     entry.num = ret;
     entry.inode = inode_nr;
-
-    sufs_checker_set_inodes_state(entry.inode, entry.num, tgid);
 
     if (copy_to_user((void *) uaddr, &entry,
             sizeof(struct sufs_ioctl_inode_alloc_entry)))
@@ -562,12 +564,15 @@ int sufs_free_inode_from_libfs(unsigned long uaddr)
 {
     struct sufs_ioctl_inode_alloc_entry entry;
 
+     /*
+      * TODO: Should perform more checks here to validate the results
+      * obtained from the user
+      */
+
      if (copy_from_user(&entry, (void *) uaddr,
              sizeof(struct sufs_ioctl_inode_alloc_entry)))
          return -EFAULT;
 
-     sufs_checker_set_inodes_state(entry.inode, entry.num, 
-            SUFS_CHECKER_STATE_FREE);
 
      return sufs_free_inodes(&sufs_sb, entry.inode, entry.num);
 }
@@ -575,10 +580,10 @@ int sufs_free_inode_from_libfs(unsigned long uaddr)
 
 /* create an new inode */
 int sufs_kfs_set_inode(int ino, char type, unsigned int mode,
-        unsigned int uid, unsigned int gid, unsigned long index_offset, 
-        int parent)
+        unsigned int uid, unsigned int gid, unsigned long index_offset)
 {
     struct sufs_shadow_inode * si = sufs_find_sinode(ino);
+    int already_exist = (si->file_type != SUFS_FILE_TYPE_NONE);
 
     if (si == NULL)
     {
@@ -591,7 +596,15 @@ int sufs_kfs_set_inode(int ino, char type, unsigned int mode,
     si->uid = uid;
     si->gid = gid;
     si->index_offset = index_offset;
-    si->parent = parent;
+
+#if 0
+    printk("ino is %d, si is %lx, lease is %lx\n", ino,
+            (unsigned long )si, (unsigned long) (&si->lease));
+#endif
+
+
+    if (!already_exist)
+        sufs_kfs_init_lease(&si->lease);
 
     return 0;
 }

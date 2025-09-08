@@ -56,11 +56,6 @@ static struct sufs_libfs_mnode* sufs_libfs_mfs_do_mnode_init(u8 type,
     m->index_start = NULL;
     m->index_end = NULL;
 
-    if (inode)
-    {
-        memcpy(&(m->shadow_inode), inode, sizeof(struct sufs_inode));
-    }
-
     sufs_libfs_inode_rwlock_init(m);
 
     switch (type)
@@ -81,9 +76,7 @@ static struct sufs_libfs_mnode* sufs_libfs_mfs_do_mnode_init(u8 type,
     return m;
 }
 
-#if 0
 static void sufs_libfs_mnode_file_unmap(struct sufs_libfs_mnode *m);
-#endif 
 
 struct sufs_libfs_mnode*
 sufs_libfs_mfs_mnode_init(u8 type, int ino_num, int parent_mnum,
@@ -94,6 +87,20 @@ sufs_libfs_mfs_mnode_init(u8 type, int ino_num, int parent_mnum,
     fflush(stdout);
 #endif
     struct sufs_libfs_mnode *mnode = NULL;
+
+    /* This could happen when another trust group obtains the file */
+    if (sufs_libfs_mnode_array[ino_num])
+    {
+        /* 
+         * BUG: sometime this code is executed even without trust group, 
+         * comment it for now 
+         */
+
+        /* 
+         * sufs_libfs_mnode_file_unmap(sufs_libfs_mnode_array[ino_num]);
+         * sufs_libfs_mnode_free(sufs_libfs_mnode_array[ino_num]);
+         */
+    }
 
     mnode = sufs_libfs_mfs_do_mnode_init(type, ino_num, parent_mnum,
             inode);
@@ -107,6 +114,10 @@ void sufs_libfs_mnode_dir_init(struct sufs_libfs_mnode *mnode)
 {
     int i = 0;
 
+    /*
+     * This is bad, make it as it is right now since the code has not been
+     * finalized
+     */
     int cpus = sufs_libfs_sb.cpus_per_socket * sufs_libfs_sb.sockets;
 
     mnode->data.dir_data.dir_node = sufs_libfs_current_node();
@@ -121,8 +132,7 @@ void sufs_libfs_mnode_dir_init(struct sufs_libfs_mnode *mnode)
         mnode->data.dir_data.dir_tails[i].end_idx = NULL;
     }
 
-    pthread_spin_init(&(mnode->data.dir_data.index_lock), 
-        PTHREAD_PROCESS_SHARED);
+    pthread_spin_init(&(mnode->data.dir_data.index_lock), PTHREAD_PROCESS_SHARED);
 
     sufs_libfs_chainhash_init(&mnode->data.dir_data.map_,
             SUFS_LIBFS_DIR_INIT_HASH_IDX);
@@ -139,6 +149,11 @@ sufs_libfs_mnode_dir_build_index_one_file_block(struct sufs_libfs_mnode * mnode,
 
     while (dir->name_len != 0)
     {
+#if 0
+        printf("dir is %lx, ino_num is %d, len: %d\n", (unsigned long) dir,
+                dir->ino_num, dir->rec_len);
+#endif
+
         if (dir->ino_num != SUFS_INODE_TOMBSTONE)
         {
             if (sufs_libfs_mfs_mnode_init(dir->inode.file_type, dir->ino_num,
@@ -147,8 +162,7 @@ sufs_libfs_mnode_dir_build_index_one_file_block(struct sufs_libfs_mnode * mnode,
 
             if (sufs_libfs_chainhash_insert(&mnode->data.dir_data.map_,
                     dir->name, SUFS_NAME_MAX, dir->ino_num,
-                    (unsigned long) dir, NULL, 
-                                      1, NULL, NULL) != SUFS_LIBFS_ERR_SUCCESS)
+                    (unsigned long) dir, NULL) == false)
                 return -ENOMEM;
         }
 
@@ -169,6 +183,10 @@ int sufs_libfs_mnode_dir_build_index(struct sufs_libfs_mnode *mnode)
 {
     struct sufs_fidx_entry *idx = mnode->index_start;
 
+#if 0
+      printf("index_start is: %lx\n", idx);
+#endif
+
     if (idx == NULL)
         goto out;
 
@@ -176,6 +194,9 @@ int sufs_libfs_mnode_dir_build_index(struct sufs_libfs_mnode *mnode)
     {
         if (likely(sufs_is_norm_fidex(idx)))
         {
+#if 0
+            printf("building index:%lx for offset: %lx\n", idx, idx->offset);
+#endif
             sufs_libfs_mnode_dir_build_index_one_file_block(mnode, idx->offset);
             idx++;
         }
@@ -189,13 +210,17 @@ int sufs_libfs_mnode_dir_build_index(struct sufs_libfs_mnode *mnode)
 
 out:
 
+#if 0
+    printf("self: %lx, index_end is: %lx\n", pthread_self(), idx);
+    printf("self: %lx, offset of index_end is %lx\n", pthread_self(), idx->offset);
+#endif
     mnode->index_end = idx;
 
     return 0;
 }
 
 struct sufs_libfs_mnode*
-sufs_libfs_mnode_dir_lookup(struct sufs_libfs_mnode *mnode, char *name, int map)
+sufs_libfs_mnode_dir_lookup(struct sufs_libfs_mnode *mnode, char *name)
 {
     unsigned long ino = 0;
 
@@ -205,16 +230,29 @@ sufs_libfs_mnode_dir_lookup(struct sufs_libfs_mnode *mnode, char *name, int map)
     if (strcmp(name, "..") == 0)
         return sufs_libfs_mnode_array[mnode->parent_mnum];
 
-    if (map && (sufs_libfs_map_file(mnode, 0) != 0))
+    sufs_libfs_file_enter_cs(mnode);
+
+#if 0
+    printf("mnode %d map: %d\n", mnode->ino_num, sufs_libfs_file_is_mapped(mnode));
+#endif
+
+    if (sufs_libfs_map_file(mnode, 0) != 0)
     {
+#if 0
+        printf("Failed at sufs_libfs_map_file!\n");
+#endif
         goto out;
     }
 
     sufs_libfs_chainhash_lookup(&mnode->data.dir_data.map_, name, SUFS_NAME_MAX,
             &ino, NULL);
 
+#if 0
+        printf("name is %s, ino is %ld!\n", name, ino);
+#endif
 
 out:
+    sufs_libfs_file_exit_cs(mnode);
     return sufs_libfs_mnode_array[ino];
 }
 
@@ -237,6 +275,8 @@ bool sufs_libfs_mnode_dir_enumerate(struct sufs_libfs_mnode *mnode, char *prev,
     if (strcmp(prev, "..") == 0)
         prev = NULL;
 
+    sufs_libfs_file_enter_cs(mnode);
+
     if (sufs_libfs_map_file(mnode, 0) != 0)
         goto out;
 
@@ -244,6 +284,7 @@ bool sufs_libfs_mnode_dir_enumerate(struct sufs_libfs_mnode *mnode, char *prev,
             SUFS_NAME_MAX, prev, name);
 
 out:
+    sufs_libfs_file_exit_cs(mnode);
     return ret;
 }
 
@@ -252,6 +293,8 @@ __ssize_t sufs_libfs_mnode_dir_getdents(struct sufs_libfs_mnode *mnode,
 {
     __ssize_t ret = 0;
 
+    sufs_libfs_file_enter_cs(mnode);
+
     if (sufs_libfs_map_file(mnode, 0) != 0)
         goto out;
 
@@ -259,6 +302,7 @@ __ssize_t sufs_libfs_mnode_dir_getdents(struct sufs_libfs_mnode *mnode,
             SUFS_NAME_MAX, offset_ptr, buffer, length);
 
 out:
+    sufs_libfs_file_exit_cs(mnode);
     return ret;
 }
 
@@ -280,6 +324,10 @@ bool sufs_libfs_mnode_dir_entry_insert(struct sufs_libfs_mnode *mnode,
     pthread_spin_lock(&(mnode->data.dir_data.dir_tails[cpu].lock));
 
     dir = mnode->data.dir_data.dir_tails[cpu].end_idx;
+
+#if 0
+    printf("insert: dir address is %lx\n", (unsigned long) dir);
+#endif
 
     if ((dir == NULL) ||
             (FILE_BLOCK_OFFSET(dir) + record_len > SUFS_FILE_BLOCK_SIZE))
@@ -324,9 +372,20 @@ bool sufs_libfs_mnode_dir_entry_insert(struct sufs_libfs_mnode *mnode,
 
     pthread_spin_unlock(&(mnode->data.dir_data.dir_tails[cpu].lock));
 
+#if 0
+    printf("dir address: %lx, offset: %ld\n",
+            (unsigned long) dir, FILE_BLOCK_OFFSET(dir));
+#endif
+
     strcpy(dir->name, name);
     dir->ino_num = mf->ino_num;
     dir->rec_len = record_len;
+
+#if 0
+    printf("dir->name address: %lx, offset: %ld, len: %ld\n",
+            (unsigned long) dir->name, FILE_BLOCK_OFFSET(dir->name),
+            strlen(name));
+#endif
 
     if (dirp) {
         (*dirp) = dir;
@@ -338,106 +397,105 @@ bool sufs_libfs_mnode_dir_entry_insert(struct sufs_libfs_mnode *mnode,
 
 }
 
-int sufs_libfs_mnode_dir_insert(struct sufs_libfs_mnode *mnode, char *name,
-        int name_len, struct sufs_libfs_mnode *mf, 
-        struct sufs_libfs_mnode ** ret_mf, struct sufs_dir_entry **dirp)
+bool sufs_libfs_mnode_dir_insert(struct sufs_libfs_mnode *mnode, char *name,
+        int name_len, struct sufs_libfs_mnode *mf, struct sufs_dir_entry **dirp)
 {
-    int ret = SUFS_LIBFS_ERR_FAIL;
+    bool ret = false;
     struct sufs_dir_entry *dir = NULL;
     struct sufs_libfs_ch_item * item = NULL;
-    struct sufs_libfs_ch_bucket *b = NULL;
 
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-        return SUFS_LIBFS_ERR_FAIL;
+        return false;
+
+    sufs_libfs_file_enter_cs(mnode);
 
     if (sufs_libfs_map_file(mnode, 1) != 0)
     {
+#if 0
+        printf("map failed!\n");
+        fflush(stdout);
+#endif
         goto out;
     }
 
-    ret = sufs_libfs_chainhash_insert(&mnode->data.dir_data.map_, name,
-            SUFS_NAME_MAX, mf->ino_num, 0, &item, 0, &b, mnode);
-
-    if (ret == SUFS_LIBFS_ERR_SUCCESS)
+    if (!sufs_libfs_chainhash_insert(&mnode->data.dir_data.map_, name,
+            SUFS_NAME_MAX, mf->ino_num, 0, &item))
     {
-        if (sufs_libfs_mnode_dir_entry_insert(mnode, name, name_len, mf, &dir))
-        {
-            item->val2 = (unsigned long) dir;
-            if (dirp)
-            {
-                (*dirp) = dir;
-            }
-        }
-        else 
-        {
-            ret = SUFS_LIBFS_ERR_FAIL;
-        }
-
-        sufs_libfs_chainhash_unlock_write_ops(&mnode->data.dir_data.map_, 
-            b, SUFS_NAME_MAX);
+#if 0
+        printf("hash insert failed!\n");
+        fflush(stdout);
+#endif
+        goto out;
     }
-    else if (ret == SUFS_LIBFS_ERR_ALREADY_EXIST)
+
+    if (!sufs_libfs_mnode_dir_entry_insert(mnode, name, name_len, mf, &dir))
     {
-        if (ret_mf && item)
-        {
-            *(ret_mf) = sufs_libfs_mnode_array[item->val];
-        }
+#if 0
+        printf("dir insert failed!\n");
+        fflush(stdout);
+#endif
+        goto out;
+    }
+
+    item->val2 = (unsigned long) dir;
+    ret = true;
+
+#if 0
+    printf("insert complete: name:%s, item:%lx, val:%ld, val2:%ld\n", name, (unsigned long) item, item->val, item->val2);
+#endif
+
+    if (dirp)
+    {
+        (*dirp) = dir;
     }
 
 out:
+    sufs_libfs_file_exit_cs(mnode);
     return ret;
 }
 
 bool sufs_libfs_mnode_dir_remove(struct sufs_libfs_mnode *mnode, char *name)
 {
+    bool ret = false;
+    struct sufs_dir_entry *dir;
+
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
         return false;
 
+    sufs_libfs_file_enter_cs(mnode);
+
     if (sufs_libfs_map_file(mnode, 1) != 0)
-       return false; 
+        goto out;
 
-    return sufs_libfs_chainhash_remove(&mnode->data.dir_data.map_, name,
-            SUFS_NAME_MAX, sufs_libfs_mnode_dir_free_cb, mnode);
-}
-
-bool sufs_libfs_mnode_dir_kill(struct sufs_libfs_mnode *mnode, int * ret_lock)
-{
-    bool ret = false;
-    int locked = 0;
-
-    while (1)
+    if (!sufs_libfs_chainhash_remove(&mnode->data.dir_data.map_, name,
+            SUFS_NAME_MAX, NULL, (unsigned long*) &dir))
     {
-        if (sufs_libfs_map_file(mnode, 0) != 0)
-            goto out;
-
-        if (sufs_libfs_file_is_real_mapped(mnode))
-        {
-            locked = 1;
-            sufs_libfs_chainhash_obtain_all_locks(&mnode->data.dir_data.map_);
-        }
-
-        if (!(sufs_libfs_file_is_mapped(mnode)))
-        {
-            if (locked)
-            {   
-                sufs_libfs_chainhash_release_all_locks(&mnode->data.dir_data.map_);
-                locked = 0;
-            }
-        }
-        else 
-        {
-            /* good, we should break */
-            break;
-        }
+        goto out;
     }
 
-    ret = sufs_libfs_chainhash_remove_and_kill(&mnode->data.dir_data.map_);
+    dir->ino_num = SUFS_INODE_TOMBSTONE;
+
+    sufs_libfs_clwb_buffer(&(dir->ino_num), sizeof(dir->ino_num));
+    sufs_libfs_sfence();
+
+    ret = true;
 
 out:
-    if (ret_lock)
-    {
-        *ret_lock = locked;
-    }
+    sufs_libfs_file_exit_cs(mnode);
+    return ret;
+}
+
+bool sufs_libfs_mnode_dir_kill(struct sufs_libfs_mnode *mnode)
+{
+    bool ret = false;
+    sufs_libfs_file_enter_cs(mnode);
+
+    if (sufs_libfs_map_file(mnode, 0) != 0)
+        goto out;
+
+    ret = sufs_libfs_chainhash_remove_and_kill(&mnode->data.dir_data.map_);
+out:
+    sufs_libfs_file_exit_cs(mnode);
     return ret;
 }
 
@@ -452,18 +510,27 @@ sufs_libfs_mnode_dir_exists(struct sufs_libfs_mnode *mnode, char *name)
     if (strcmp(name, "..") == 0)
         return sufs_libfs_mnode_array[mnode->parent_mnum];
 
+    sufs_libfs_file_enter_cs(mnode);
+
     if (sufs_libfs_map_file(mnode, 0) != 0)
     {
+#if 0
+        printf("Failed at sufs_libfs_map_file!\n");
+#endif
         goto out;
     }
 
     sufs_libfs_chainhash_lookup(&mnode->data.dir_data.map_, name, SUFS_NAME_MAX,
             &ret, NULL);
 out:
+    sufs_libfs_file_exit_cs(mnode);
     return sufs_libfs_mnode_array[ret];
 }
 
-
+static inline void sufs_libfs_mnode_dir_force_delete(struct sufs_libfs_mnode *m)
+{
+    sufs_libfs_chainhash_forced_remove_and_kill(&m->data.dir_data.map_);
+}
 
 
 /* return the inserted index */
@@ -491,10 +558,18 @@ sufs_libfs_mnode_file_index_append(struct sufs_libfs_mnode *m,
 
     idx = m->index_end;
 
+#if 0
+    printf("m->index_end is %lx\n", (unsigned long) m->index_end);
+#endif
+
     if (likely(sufs_is_norm_fidex(idx)))
     {
         ret = idx;
 
+#if 0
+    printf("self: %lx, idx is %lx\n", pthread_self(), (unsigned long) idx);
+    printf("self: %lx, idx->offset is %lx\n", pthread_self(), (unsigned long) idx->offset);
+#endif
         idx->offset = sufs_libfs_virt_addr_to_offset(addr);
         idx++;
     }
@@ -518,6 +593,10 @@ sufs_libfs_mnode_file_index_append(struct sufs_libfs_mnode *m,
         ret = idx;
         idx++;
 
+        /*
+         * Mark old_idx as the last step to guarantee atomicity
+         * No need for barrier since we assume TSO
+         */
 
         old_idx->offset = sufs_libfs_block_to_offset(block);
     }
@@ -527,8 +606,8 @@ sufs_libfs_mnode_file_index_append(struct sufs_libfs_mnode *m,
     return ret;
 }
 
-void sufs_libfs_mnode_file_resize_append(struct sufs_libfs_mnode *m, 
-    u64 newsize, unsigned long addr)
+void sufs_libfs_mnode_file_resize_append(struct sufs_libfs_mnode *m, u64 newsize,
+        unsigned long addr)
 {
     u64 oldsize = m->data.file_data.size_;
     struct sufs_fidx_entry * idx = NULL;
@@ -546,6 +625,64 @@ void sufs_libfs_mnode_file_resize_append(struct sufs_libfs_mnode *m,
 
     m->data.file_data.size_ = newsize;
 }
+
+static void sufs_libfs_mnode_file_unmap(struct sufs_libfs_mnode *m)
+{
+    struct sufs_fidx_entry *idx = m->index_start;
+    unsigned long old_idx = 0;
+    unsigned long block = 0;
+
+    if (idx == NULL)
+        goto out;
+
+    while (idx->offset != 0)
+    {
+        if (likely(sufs_is_norm_fidex(idx)))
+        {
+            block = sufs_libfs_offset_to_block(idx->offset);
+
+            sufs_libfs_block_clear_owned(block);
+
+            idx++;
+        }
+        else
+        {
+            old_idx = (unsigned long) idx;
+
+            idx = (struct sufs_fidx_entry*) sufs_libfs_offset_to_virt_addr(
+                    idx->offset);
+
+            block = sufs_libfs_virt_addr_to_block(old_idx);
+
+            sufs_libfs_block_clear_owned(block);
+        }
+    }
+
+    old_idx = (unsigned long) idx;
+
+    idx = (struct sufs_fidx_entry*) sufs_libfs_offset_to_virt_addr(
+            idx->offset);
+
+    block = sufs_libfs_virt_addr_to_block(old_idx);
+
+    sufs_libfs_block_clear_owned(block);
+
+out:
+    if (m->type == SUFS_FILE_TYPE_REG)
+    {
+        sufs_libfs_mnode_file_free_page(m);
+    }
+    else
+    {
+        sufs_libfs_mnode_dir_force_delete(m);
+        sufs_libfs_mnode_dir_free(m);
+    }
+}
+
+/*
+ * if keep_first, do not remove the first offset page
+ * otherwise, remove everything
+ */
 
 void sufs_libfs_mnode_file_index_delete( struct sufs_fidx_entry *idx,
         int keep_first)
@@ -572,9 +709,10 @@ void sufs_libfs_mnode_file_index_delete( struct sufs_fidx_entry *idx,
 
             idx->offset = 0;
 
+            /* persist the first write to idx->offset */
             if (!persist)
             {
-                sufs_libfs_clwb_buffer(&idx->offset, sizeof(idx->offset), 0);
+                sufs_libfs_clwb_buffer(&idx->offset, sizeof(idx->offset));
                 sufs_libfs_sfence();
                 persist = 1;
             }
@@ -592,9 +730,10 @@ void sufs_libfs_mnode_file_index_delete( struct sufs_fidx_entry *idx,
 
             idx->offset = 0;
 
+            /* persist the first write to idx->offset */
             if (!persist)
             {
-                sufs_libfs_clwb_buffer(&idx->offset, sizeof(idx->offset), 0);
+                sufs_libfs_clwb_buffer(&idx->offset, sizeof(idx->offset));
                 sufs_libfs_sfence();
                 persist = 1;
             }
@@ -686,13 +825,13 @@ void sufs_libfs_do_mnode_stat(struct sufs_libfs_mnode *m, struct stat *st)
     st->st_dev = 0;
     st->st_ino = m->ino_num;
 
-    st->st_mode = stattype | m->shadow_inode.mode;
+    st->st_mode = stattype | m->inode->mode;
 
 
     st->st_nlink = 1;
 
-    st->st_uid = m->shadow_inode.uid;
-    st->st_gid = m->shadow_inode.gid;
+    st->st_uid = m->inode->uid;
+    st->st_gid = m->inode->gid;
     st->st_rdev = 0;
 
     st->st_size = 0;
@@ -705,11 +844,13 @@ void sufs_libfs_do_mnode_stat(struct sufs_libfs_mnode *m, struct stat *st)
     else
     {
         st->st_size = (1024 * 1024 * 1024);
+        /* st->st_size = m->inode->size; */
     }
 
     st->st_blksize = st->st_size / SUFS_PAGE_SIZE;
     st->st_blocks = st->st_size / 512;
 
+    /* TODO: get from inode */
     memset(&st->st_atim, 0, sizeof(struct timespec));
     memset(&st->st_mtim, 0, sizeof(struct timespec));
     memset(&st->st_ctim, 0, sizeof(struct timespec));
@@ -722,6 +863,8 @@ int sufs_libfs_mnode_stat(struct sufs_libfs_mnode *m, struct stat *st)
 
     struct sufs_libfs_mnode * parent = sufs_libfs_mnode_array[m->parent_mnum];
 
+    sufs_libfs_file_enter_cs(parent);
+
     if (sufs_libfs_map_file(parent, 0) != 0)
         goto out;
 
@@ -729,5 +872,7 @@ int sufs_libfs_mnode_stat(struct sufs_libfs_mnode *m, struct stat *st)
     ret = 0;
 
 out:
+    sufs_libfs_file_exit_cs(parent);
+
     return ret;
 }

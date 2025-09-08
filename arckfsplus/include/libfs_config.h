@@ -1,0 +1,48 @@
+#ifndef SUFS_GLOBAL_LIBFS_CONFIG_H_
+#define SUFS_GLOBAL_LIBFS_CONFIG_H_
+
+#include "config.h"
+
+#define SUFS_LIBFS_DIR_INIT_HASH_IDX   0
+
+#define SUFS_LIBFS_GDIR_INIT_HASH_IDX  14
+
+#define SUFS_LIBFS_DIR_REHASH_FACTOR   2
+
+#define SUFS_LIBFS_MAX_FD 1024
+
+#define SUFS_LIBFS_INODE_CHUNK 10000
+
+#define SUFS_LIBFS_INIT_BLOCK_CHUNK 64
+
+#define SUFS_LIBFS_EXTRA_BLOCK_CHUNK (256 * 16)
+
+#define SUFS_ROOT_PATH        "/sufs/"
+
+#define SUFS_LIBFS_BASE_FD    (1024 * 1024)
+
+#define SUFS_LIBFS_CPUS       224
+
+#define SUFS_MAX_MAP_FILE     4096
+
+#define SUFS_LIBFS_RL_TABLE_SIZE       (1024 * 1024)
+
+#define SUFS_LIBFS_RL_NUM_SLOT        (1048573)
+
+#define SUFS_LIBFS_BRAVO_N             9
+
+#define SUFS_INODE_RW_LOCK_SPIN        1
+#define SUFS_INODE_RW_LOCK_BRAVO       2
+
+#define SUFS_INODE_RW_LOCK             SUFS_INODE_RW_LOCK_SPIN
+
+#define SUFS_LIBFS_SEGMENT_INIT_COUNT  1
+
+#define SUFS_LIBFS_SEGMENT_SIZE_BITS   12
+
+#define SUFS_LIBFS_RANGE_LOCK          0
+
+#define SUFS_LIBFS_FILE_MAP_LOCK_SIZE    4096
+#define SUFS_LIBFS_STAT                  0
+
+#endif

@@ -22,8 +22,6 @@
 #include "irwlock.h"
 #include "range_lock.h"
 #include "random.h"
-#include "error_code.h"
-#include "journal.h"
 
 
 extern struct sufs_libfs_mnode ** sufs_libfs_mnode_array;
@@ -44,7 +42,6 @@ struct sufs_libfs_mnode
 
     int parent_mnum;
 
-    struct sufs_inode shadow_inode; 
     struct sufs_inode * inode;
 
     struct sufs_fidx_entry * index_start;
@@ -118,12 +115,11 @@ static inline bool sufs_libfs_mnode_dir_replace_from(
         char *srcname,
         struct sufs_libfs_mnode *msrc,
         struct sufs_libfs_mnode *subdir,
-        sufs_libfs_rename_complete_t cb)
+        struct sufs_libfs_ch_item ** item)
 {
     return sufs_libfs_chainhash_replace_from(&dstparent->data.dir_data.map_,
             dstname, mdst ? 1 : 0, &srcparent->data.dir_data.map_, srcname,
-                    msrc->ino_num, 0, SUFS_NAME_MAX, dstparent, srcparent, 
-                    msrc, mdst, cb);
+                    msrc->ino_num, 0, SUFS_NAME_MAX, item);
 }
 
 
@@ -224,16 +220,6 @@ static inline void sufs_libfs_mnode_free(struct sufs_libfs_mnode * mnode)
     free(mnode);
 }
 
-static inline void sufs_libfs_mnode_dir_free_cb(void * arg)
-{
-    struct sufs_dir_entry *dir = (struct sufs_dir_entry *) arg;
-
-    dir->ino_num = SUFS_INODE_TOMBSTONE;
-
-    sufs_libfs_clwb_buffer(&(dir->ino_num), sizeof(dir->ino_num), 0);
-    sufs_libfs_sfence();
-}
-
 void sufs_libfs_mnodes_init(void);
 
 void sufs_libfs_mnodes_fini(void);
@@ -247,8 +233,7 @@ void sufs_libfs_mnode_dir_init(struct sufs_libfs_mnode *mnode);
 int sufs_libfs_mnode_dir_build_index(struct sufs_libfs_mnode *mnode);
 
 struct sufs_libfs_mnode*
-sufs_libfs_mnode_dir_lookup(struct sufs_libfs_mnode *mnode, char *name, 
-    int map);
+sufs_libfs_mnode_dir_lookup(struct sufs_libfs_mnode *mnode, char *name);
 
 bool sufs_libfs_mnode_dir_enumerate(struct sufs_libfs_mnode *mnode, char *prev,
         char *name);
@@ -260,13 +245,12 @@ bool sufs_libfs_mnode_dir_entry_insert(struct sufs_libfs_mnode *mnode,
         char *name, int name_len, struct sufs_libfs_mnode *mf,
         struct sufs_dir_entry **dirp);
 
-int sufs_libfs_mnode_dir_insert(struct sufs_libfs_mnode *mnode, char *name,
-        int name_len, struct sufs_libfs_mnode *mf, 
-        struct sufs_libfs_mnode ** ret_mf,struct sufs_dir_entry **dirp);
+bool sufs_libfs_mnode_dir_insert(struct sufs_libfs_mnode *mnode, char *name,
+        int name_len, struct sufs_libfs_mnode *mf, struct sufs_dir_entry **dirp);
 
 bool sufs_libfs_mnode_dir_remove(struct sufs_libfs_mnode *mnode, char *name);
 
-bool sufs_libfs_mnode_dir_kill(struct sufs_libfs_mnode *mnode, int * ret_lock);
+bool sufs_libfs_mnode_dir_kill(struct sufs_libfs_mnode *mnode);
 
 struct sufs_libfs_mnode*
 sufs_libfs_mnode_dir_exists(struct sufs_libfs_mnode *mnode, char *name);

@@ -2,13 +2,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdatomic.h>
-#include <unistd.h>
-
 
 #include "../include/libfs_config.h"
 #include "../include/common_inode.h"
 #include "../include/ring_buffer.h"
-#include "../include/ioctl.h"
 
 #include "mfs.h"
 #include "mnode.h"
@@ -18,16 +15,23 @@
 #include "journal.h"
 #include "tls.h"
 #include "stat.h"
-#include "simple_ring_buffer.h"
-#include "proc.h"
 
 struct sufs_libfs_mnode *sufs_libfs_root_dir = NULL;
 
-
+/*
+ * Whether a file is mapped as read-only or read-write
+ * set: read-write
+ * clear: read-only
+ */
 atomic_char *sufs_libfs_inode_mapped_attr = NULL;
 
+/*
+ * Whether an inode has been mapped before or not
+ * set: mapped before
+ */
 atomic_char * sufs_libfs_inode_has_mapped = NULL;
 
+/* Whether an inode's index has been built or not */
 atomic_char * sufs_libfs_inode_has_index = NULL;
 
 pthread_spinlock_t * sufs_libfs_inode_map_lock = NULL;
@@ -39,21 +43,7 @@ struct sufs_libfs_mapped_inodes
     int index;
 };
 
-struct sufs_libfs_wanted_entry
-{
-    int ino;
-    struct sufs_libfs_wanted_entry * next;
-};
-
-struct sufs_libfs_wanted_inodes
-{
-    struct sufs_libfs_wanted_entry * head;
-    pthread_spinlock_t lock;
-    volatile int count;
-};
-
 static struct sufs_libfs_mapped_inodes sufs_libfs_mapped_inodes;
-static struct sufs_libfs_wanted_inodes sufs_libfs_wanted_inodes;
 
 void sufs_libfs_mfs_init(void)
 {
@@ -65,8 +55,6 @@ void sufs_libfs_mfs_init(void)
     sufs_libfs_inode_has_index = calloc(1, SUFS_MAX_INODE_NUM / sizeof(char));
 
     sufs_libfs_mapped_inodes.inodes = calloc(SUFS_MAX_MAP_FILE, sizeof(int));
-
-    sufs_libfs_wanted_inodes.head = NULL; 
 
     sufs_libfs_inode_map_lock = calloc(SUFS_LIBFS_FILE_MAP_LOCK_SIZE,
             sizeof(pthread_spinlock_t));
@@ -84,14 +72,12 @@ void sufs_libfs_mfs_init(void)
     sufs_libfs_mapped_inodes.index = 0;
     pthread_spin_init(&(sufs_libfs_mapped_inodes.lock), PTHREAD_PROCESS_SHARED);
 
-    sufs_libfs_wanted_inodes.count = 0;
-    pthread_spin_init(&(sufs_libfs_wanted_inodes.lock), PTHREAD_PROCESS_SHARED);
-
     for (i = 0; i < SUFS_LIBFS_FILE_MAP_LOCK_SIZE; i++)
     {
         pthread_spin_init(&(sufs_libfs_inode_map_lock[i]),
                 PTHREAD_PROCESS_SHARED);
     }
+
 }
 
 void sufs_libfs_mfs_fini(void)
@@ -116,9 +102,18 @@ void sufs_libfs_mfs_fini(void)
 void sufs_libfs_mfs_add_mapped_inode(int ino)
 {
     int index = 0;
+    /* TODO: Would be good if we have atomic test and set bit */
     if (sufs_libfs_bm_test_bit(sufs_libfs_inode_has_mapped, ino))
         return;
 
+    /* FIXME: This might be a scalabilty bottleneck */
+
+    /*
+     * Also, remove a directory requries us to map the directory to check
+     * how many files are still there.
+     *
+     * This part might overflow with a large number of removed directories
+     */
     pthread_spin_lock(&(sufs_libfs_mapped_inodes.lock));
 
     if (sufs_libfs_bm_test_bit(sufs_libfs_inode_has_mapped, ino))
@@ -153,16 +148,15 @@ void sufs_libfs_mfs_unmap_mapped_inodes(void)
 
         if (sufs_libfs_bm_test_bit((atomic_char*) SUFS_MAPPED_RING_ADDR, ino))
         {
-            struct sufs_libfs_mnode *mnode = sufs_libfs_mnode_array[ino];
-            unsigned long index_offset = 0;
+            /*
+             * This is fine, we don't need the complicated
+             * sufs_libfs_mnode_file_unmap since:
+             * 1. We don't need to recycle memory
+             * 2. We don't need to maintain the ownership of block / inode
+             * any more
+             */
 
-            if (mnode == NULL) 
-                continue;
-
-            index_offset = 
-                sufs_libfs_virt_addr_to_offset((unsigned long)mnode->index_start);
-
-            sufs_libfs_cmd_unmap_file(ino, mnode->type, index_offset);
+            sufs_libfs_cmd_unmap_file(ino);
         }
     }
 
@@ -171,12 +165,14 @@ void sufs_libfs_mfs_unmap_mapped_inodes(void)
 
 void sufs_libfs_fs_init(void)
 {
+    /* Being lazy here */
     struct sufs_inode * inode = calloc(1, sizeof(struct sufs_inode));
     inode->file_type = SUFS_FILE_TYPE_DIR;
     inode->mode = SUFS_ROOT_PERM;
 
     inode->uid = inode->gid = 0;
     inode->size = 0;
+    /* offset == 0 should be fine; the LibFS really does not use this value */
     inode->offset = 0;
 
     sufs_libfs_root_dir = sufs_libfs_mfs_mnode_init(SUFS_FILE_TYPE_DIR,
@@ -259,10 +255,15 @@ static int skipelem(char **rpath, char *name)
  */
 
 struct sufs_libfs_mnode* sufs_libfs_namex(struct sufs_libfs_mnode *cwd,
-        char *path, bool nameiparent, char *name, int map)
+        char *path,
+        bool nameiparent, char *name)
 {
     struct sufs_libfs_mnode *m;
     int r;
+
+#if 0
+    printf("path is %s\n", path);
+#endif
 
     if (*path == '/')
     {
@@ -286,7 +287,7 @@ struct sufs_libfs_mnode* sufs_libfs_namex(struct sufs_libfs_mnode *cwd,
             return m;
         }
 
-        next = sufs_libfs_mnode_dir_lookup(m, name, map);
+        next = sufs_libfs_mnode_dir_lookup(m, name);
 
         if (!next)
             return NULL;
@@ -316,12 +317,6 @@ s64 sufs_libfs_readm(struct sufs_libfs_mnode *m, char *buf, u64 start,
 #if SUFS_LIBFS_RANGE_LOCK
     unsigned long start_seg = 0, end_seg = 0;
 #endif
-
-    if (sufs_libfs_map_file(m, 0) != 0)
-    {
-        return -1; 
-    }
-
 
     if (start + nbytes < end)
     {
@@ -356,6 +351,9 @@ s64 sufs_libfs_readm(struct sufs_libfs_mnode *m, char *buf, u64 start,
             end_seg);
 #endif
 
+#if 0
+    printf("start: %ld, off: %ld, end: %ld\n", start, off, end);
+#endif
 
     while (start + off < end)
     {
@@ -365,7 +363,7 @@ s64 sufs_libfs_readm(struct sufs_libfs_mnode *m, char *buf, u64 start,
         unsigned long addr = sufs_libfs_mnode_file_get_page(m,
                 pgbase / SUFS_FILE_BLOCK_SIZE);
 
-        if (!addr || !sufs_libfs_file_is_mapped(m))
+        if (!addr)
             break;
 
         pgoff = pos - pgbase;
@@ -378,6 +376,9 @@ s64 sufs_libfs_readm(struct sufs_libfs_mnode *m, char *buf, u64 start,
 
         if (!sufs_libfs_delegation || len < SUFS_READ_DELEGATION_LIMIT)
         {
+#if 0
+            printf("No delegation, len = %ld\n", len);
+#endif
             memcpy(buf + off, (char*) addr + pgoff, len);
         }
         else
@@ -425,11 +426,6 @@ s64 sufs_libfs_writem(struct sufs_libfs_mnode *m, char *buf, u64 start,
 
     SUFS_LIBFS_DEFINE_TIMING_VAR(writem_time);
     SUFS_LIBFS_DEFINE_TIMING_VAR(index_time);
-
-    if (sufs_libfs_map_file(m, 1) != 0)
-    {
-        return -1; 
-    }
 
     SUFS_LIBFS_START_TIMING(SUFS_LIBFS_WRITEM, writem_time);
 
@@ -516,8 +512,12 @@ s64 sufs_libfs_writem(struct sufs_libfs_mnode *m, char *buf, u64 start,
 
             if (!sufs_libfs_delegation || len < SUFS_WRITE_DELEGATION_LIMIT)
             {
+#if 0
+                printf("No delegation!\n");
+#endif
+
                 memcpy((char*) addr + pgoff, buf + off, len);
-                sufs_libfs_clwb_buffer((char *) addr + pgoff, len, 0);
+                sufs_libfs_clwb_buffer((char *) addr + pgoff, len);
             }
             else
             {
@@ -584,8 +584,11 @@ s64 sufs_libfs_writem(struct sufs_libfs_mnode *m, char *buf, u64 start,
 
             if (!sufs_libfs_delegation || len < SUFS_WRITE_DELEGATION_LIMIT)
             {
+#if 0
+                printf("No delegation!\n");
+#endif
                 memcpy((void *) addr + pgoff, buf + off, len);
-                sufs_libfs_clwb_buffer((char *) addr + pgoff, len, 0);
+                sufs_libfs_clwb_buffer((char *) addr + pgoff, len);
             }
             else
             {
@@ -606,9 +609,6 @@ s64 sufs_libfs_writem(struct sufs_libfs_mnode *m, char *buf, u64 start,
         }
 
         off += len;
-
-        if (!sufs_libfs_file_is_mapped(m))
-            break;
     }
 
     if (delegated)
@@ -649,7 +649,7 @@ void sufs_libfs_flush_file_index(struct sufs_fidx_entry * start,
 
     if (start == end)
     {
-        sufs_libfs_clwb_buffer(&(start->offset), sizeof(start->offset), 0);
+        sufs_libfs_clwb_buffer(&(start->offset), sizeof(start->offset));
         return;
     }
 
@@ -664,7 +664,7 @@ void sufs_libfs_flush_file_index(struct sufs_fidx_entry * start,
     while (idx->offset != 0)
     {
         if ( ((unsigned long) idx % SUFS_CACHELINE) == 0)
-            sufs_libfs_clwb_buffer(idx, SUFS_CACHELINE, 0);
+            sufs_libfs_clwb_buffer(idx, SUFS_CACHELINE);
 
         if (likely(sufs_is_norm_fidex(idx)))
         {
@@ -693,19 +693,7 @@ int sufs_libfs_truncatem(struct sufs_libfs_mnode *m, off_t length)
 
     int i = 0;
 
-    if (sufs_libfs_map_file(m, 1) != 0)
-    {
-        return -1;
-    }
-
-
     sufs_libfs_inode_write_lock(m);
-
-    if (!sufs_libfs_file_is_mapped(m))
-    {
-        sufs_libfs_inode_write_unlock(m);
-        return -1;
-    }
 
     if (mbase == lbase)
     {
@@ -785,8 +773,7 @@ int sufs_libfs_truncatem(struct sufs_libfs_mnode *m, off_t length)
                 /* persist the first write to idx->offset */
                 if (!persist)
                 {
-                    sufs_libfs_clwb_buffer(&idx->offset, 
-                        sizeof(idx->offset), 0);
+                    sufs_libfs_clwb_buffer(&idx->offset, sizeof(idx->offset));
                     sufs_libfs_sfence();
                     persist = 1;
                 }
@@ -806,8 +793,7 @@ int sufs_libfs_truncatem(struct sufs_libfs_mnode *m, off_t length)
                 /* persist the first write to idx->offset */
                 if (!persist)
                 {
-                    sufs_libfs_clwb_buffer(&idx->offset, 
-                            sizeof(idx->offset), 0);
+                    sufs_libfs_clwb_buffer(&idx->offset, sizeof(idx->offset));
                     sufs_libfs_sfence();
                     persist = 1;
                 }
@@ -871,10 +857,7 @@ int sufs_libfs_do_map_file(struct sufs_libfs_mnode *m, int writable)
             != 0)
     {
         if (ret == -EAGAIN)
-        {
-            usleep(10 * 1000); 
             continue;
-        }
         else
         {
             fprintf(stderr, "map ion: %d writable: %d failed with %d\n",
@@ -883,6 +866,10 @@ int sufs_libfs_do_map_file(struct sufs_libfs_mnode *m, int writable)
             return ret;
         }
     }
+
+#if 0
+    printf("inode: %d, index_offset is %lx\n", m->ino_num, index_offset);
+#endif
 
     if (index_offset == 0)
     {
@@ -904,101 +891,12 @@ int sufs_libfs_do_map_file(struct sufs_libfs_mnode *m, int writable)
 
 
 
-/* Helper to unmap a file, used in sufs_libfs_map_file */
-static int
-sufs_libfs_unmap_file_helper(struct sufs_libfs_mnode *m, int writable)
+/* upgrade the mapping from read only to writable */
+int sufs_libfs_upgrade_file_map(struct sufs_libfs_mnode *m)
 {
-    int ino = m->ino_num, ret = 0;
-    unsigned long index_offset = 0;
+    sufs_libfs_cmd_unmap_file(m->ino_num);
 
-    if (sufs_libfs_mnode_type(m) == SUFS_FILE_TYPE_REG)
-    {
-        sufs_libfs_inode_write_lock(m);
-    }
-    else
-    {
-        sufs_libfs_chainhash_obtain_all_locks(&m->data.dir_data.map_);
-    }
-
-    index_offset =
-        sufs_libfs_virt_addr_to_offset((unsigned long) m->index_start);
-
-    ret = sufs_libfs_cmd_unmap_file(ino, m->type, index_offset);
-
-    if (sufs_libfs_mnode_type(m) == SUFS_FILE_TYPE_REG)
-    {
-        sufs_libfs_inode_write_unlock(m);
-    }
-    else
-    {
-        sufs_libfs_chainhash_release_all_locks(&m->data.dir_data.map_);
-    }
-
-    return ret;
-}
-
-static void sufs_libfs_release_wanted_inodes(void)
-{
-    struct sufs_libfs_wanted_entry *prev = NULL, *iter = NULL;
-
-    if (sufs_libfs_wanted_inodes.count > 0)
-    {
-        pthread_spin_lock(&(sufs_libfs_wanted_inodes.lock));
-        iter = sufs_libfs_wanted_inodes.head;
-        while (iter != NULL)
-        {
-            struct sufs_libfs_mnode *m = sufs_libfs_mnode_array[iter->ino];
-            if (sufs_libfs_file_is_mapped(m) && 
-                sufs_libfs_file_should_release(m))
-            {
-                sufs_libfs_unmap_file_helper(m, 1);
-                if (prev == NULL)
-                {
-                    sufs_libfs_wanted_inodes.head = iter->next;
-                }
-                else
-                {
-                    prev->next = iter->next;
-                }
-                 sufs_libfs_wanted_inodes.count--;
-            }
-
-            prev = iter;
-            iter = iter->next;
-        }
-        pthread_spin_unlock(&(sufs_libfs_wanted_inodes.lock));
-
-    }
-}
-
-
-static void sufs_libfs_handle_lease(void)
-{
-    struct sufs_ioctl_to_free_entry e; 
-    struct sufs_libfs_wanted_entry * entry = NULL; 
-
-    while (!sufs_libfs_sr_is_empty(sufs_libfs_lease_ring))
-    {
-        int ret = sufs_libfs_do_sr_receive_request(sufs_libfs_lease_ring, 
-                &e);
-
-        if (ret == -SUFS_RBUFFER_AGAIN)
-            break;
-
-        pthread_spin_lock(&(sufs_libfs_wanted_inodes.lock));
-
-        entry = calloc(1, sizeof(struct sufs_libfs_wanted_entry));
-        entry->ino = e.ino_num;
-        entry->next = sufs_libfs_wanted_inodes.head;
-        sufs_libfs_wanted_inodes.head = entry;
-
-        sufs_libfs_wanted_inodes.count++;
-
-        pthread_spin_unlock(&(sufs_libfs_wanted_inodes.lock));
-    }
-
-
-    sufs_libfs_release_wanted_inodes();
+    return sufs_libfs_do_map_file(m, 1);
 }
 
 
@@ -1006,37 +904,57 @@ int sufs_libfs_map_file(struct sufs_libfs_mnode *m, int writable)
 {
     int ret = 0;
 
-    /* Only supports write-shared now */
+    /*
+     * BUG: Internally marks all the request for write, since our upgrade function
+     * does not work.
+     *
+     * Remove the below line once we have figured out how to work with upgrade
+     */
     writable = 1;
 
-    sufs_libfs_handle_lease();
-    
-    if (sufs_libfs_file_is_mapped(m))
-        return 0;
-
- 
-    sufs_libfs_lock_file_mapping(m);
 
     if (sufs_libfs_file_is_mapped(m))
-        goto out;
-
-    if ((ret = sufs_libfs_do_map_file(m, writable)) != 0)
-        goto out;
-
-    if (m->type == SUFS_FILE_TYPE_REG)
     {
-        sufs_libfs_file_build_index(m);
+        if (!writable)
+            return 0;
+
+        if (writable && sufs_libfs_file_mapped_writable(m))
+            return 0;
+
+        sufs_libfs_lock_file_mapping(m);
+
+        ret = sufs_libfs_upgrade_file_map(m);
+
+        sufs_libfs_unlock_file_mapping(m);
+
+        return ret;
     }
     else
     {
-        sufs_libfs_mnode_dir_build_index(m);
-    }
-    
-    sufs_libfs_bm_set_bit(sufs_libfs_inode_has_index, m->ino_num);
+        sufs_libfs_lock_file_mapping(m);
+
+        if (sufs_libfs_file_is_mapped(m))
+            goto out;
+
+        if ((ret = sufs_libfs_do_map_file(m, writable)) != 0)
+            goto out;
+
+        if (m->type == SUFS_FILE_TYPE_REG)
+        {
+            sufs_libfs_file_build_index(m);
+        }
+        else
+        {
+            sufs_libfs_mnode_dir_build_index(m);
+        }
+
+        sufs_libfs_bm_set_bit(sufs_libfs_inode_has_index, m->ino_num);
 
 out:
-    sufs_libfs_unlock_file_mapping(m);
-    return ret;
+        sufs_libfs_unlock_file_mapping(m);
+
+        return ret;
+    }
 }
 
 void sufs_libfs_file_build_index(struct sufs_libfs_mnode *m)
@@ -1048,8 +966,15 @@ void sufs_libfs_file_build_index(struct sufs_libfs_mnode *m)
     if (idx == NULL)
         goto out;
 
+#if 0
+    printf("m->index_start is %lx\n", (unsigned long) m->index_start);
+#endif
+
     while (idx->offset != 0)
     {
+#if 0
+    printf("idx is %lx\n", (unsigned long) idx);
+#endif
 
         if (likely(sufs_is_norm_fidex(idx)))
         {
@@ -1067,23 +992,10 @@ void sufs_libfs_file_build_index(struct sufs_libfs_mnode *m)
     }
 
 out:
+#if 0
+    printf("index_end is %lx\n", (unsigned long) idx);
+#endif
 
     m->index_end = idx;
-}
-
-int sufs_libfs_sys_unmap_by_path(struct sufs_libfs_proc *proc, char * path)
-{
-    struct sufs_libfs_mnode* m = NULL;
-    unsigned long index_offset = 0;
-
-    m = sufs_libfs_namei(proc->cwd_m, path, 0);
-
-    if (!m)
-    {
-        fprintf(stderr, "Cannot find file: %s\n", path);
-        return 0;
-    }
-
-    return sufs_libfs_unmap_file_helper(m, 1);
 }
 

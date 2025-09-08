@@ -38,7 +38,7 @@
 #include "tgroup.h"
 #include "mmap.h"
 #include "delegation.h"
-#include "checker.h"
+
 
 static int sufs_insert_blocktree(struct rb_root *tree,
         struct sufs_range_node *new_node)
@@ -177,6 +177,16 @@ void sufs_init_block_free_list(struct sufs_super_block * sb, int recovery)
                 free_list->last_node = blknode;
                 free_list->num_blocknode = 1;
             }
+
+#if 0
+            printk(
+                "%s: free list, addr: %lx, cpu %d, pm_node %d,  block "
+                "start %lu, end %lu, "
+                "%lu free blocks\n",
+                __func__, (unsigned long)free_list, i, j,
+                free_list->block_start, free_list->block_end,
+                free_list->num_free_blocks);
+#endif
         }
 }
 
@@ -700,10 +710,11 @@ unsigned long sufs_sys_info_libfs(unsigned long arg)
 }
 
 /* map the allocated pages to user level */
-static int sufs_map_allocated_pages(unsigned long start_blk, unsigned long num, 
-        int tgid)
+static int sufs_map_allocated_pages(unsigned long start_blk, unsigned long num)
 {
     struct vm_area_struct * vma = NULL;
+
+    int tgid = sufs_kfs_pid_to_tgid(current->tgid, 0);
 
     struct sufs_tgroup * tgroup = sufs_kfs_tgid_to_tgroup(tgid);
 
@@ -738,8 +749,13 @@ int sufs_alloc_blocks_to_libfs(unsigned long uaddr)
 {
     struct sufs_ioctl_block_alloc_entry entry;
 
-    int ret = 0, cpu = 0, tgid = 0;
+    int ret = 0, cpu = 0;
     unsigned long block_nr = 0;
+
+    /*
+     * TODO: Should perform more checks here to validate the results
+     * obtained from the user
+     */
 
     if (copy_from_user(&entry, (void *) uaddr,
             sizeof(struct sufs_ioctl_block_alloc_entry)))
@@ -757,14 +773,13 @@ int sufs_alloc_blocks_to_libfs(unsigned long uaddr)
     entry.num = ret;
     entry.block = block_nr;
 
-    tgid = sufs_kfs_pid_to_tgid(current->tgid, 0);
 
-    ret = sufs_map_allocated_pages(block_nr, ret, tgid);
+    ret = sufs_map_allocated_pages(block_nr, ret);
 
     if (ret < 0)
         return ret;
 
-    sufs_checker_set_pages_state(entry.block, entry.num, tgid);
+    /* TODO: When the map failed, we should free the allocated pages */
 
     if (copy_to_user((void *) uaddr, &entry,
             sizeof(struct sufs_ioctl_inode_alloc_entry)))
@@ -804,15 +819,142 @@ static void sufs_unmap_allocated_pages(unsigned long start_blk, unsigned long nu
 int sufs_free_blocks_from_libfs(unsigned long uaddr)
 {
     struct sufs_ioctl_block_alloc_entry entry;
+     /*
+      * TODO: Should perform more checks here to validate the results
+      * obtained from the user
+      */
 
      if (copy_from_user(&entry, (void *) uaddr,
              sizeof(struct sufs_ioctl_block_alloc_entry)))
          return -EFAULT;
 
-     sufs_unmap_allocated_pages(entry.block, entry.num);
 
-     sufs_checker_set_pages_state(entry.block, entry.num,       
-                SUFS_CHECKER_STATE_FREE);
+     sufs_unmap_allocated_pages(entry.block, entry.num);
 
      return sufs_free_blocks(&sufs_sb, entry.block, entry.num);
 }
+
+
+/* Grave Yard */
+#if 0
+
+
+int sufs_free_data_blocks(struct sufs_super_block * sb, unsigned long blocknr,
+              int num)
+{
+    int ret;
+
+    if (blocknr == 0)
+    {
+        printk("%s: ERROR: %lu, %d\n", __func__, blocknr, num);
+        return -EINVAL;
+    }
+
+    ret = sufs_free_blocks(sb, blocknr, num);
+
+    return ret;
+}
+
+int sufs_free_index_blocks(struct sufs_super_block * sb, unsigned long blocknr,
+               int num)
+{
+    int ret;
+
+    if (blocknr == 0)
+    {
+        printk("%s: ERROR: %lu, %d\n", __func__, blocknr, num);
+        return -EINVAL;
+    }
+
+    ret = sufs_free_blocks(sb, blocknr, num);
+
+    return ret;
+}
+
+/*
+ * These are the functions to call the allocator to get blocks. Let's also
+ * make decisions based on allocation functions in these functions
+ */
+
+/*
+ * Allocate data blocks; blocks to hold file data
+ * The offset for the allocated block comes back in
+ * blocknr.  Return the number of blocks allocated.
+ */
+
+static int sufs_do_new_data_blocks(struct super_block *sb,
+                   struct sufs_inode *inode,
+                   unsigned long *blocknr, unsigned int num,
+                   int zero, int curr_cpu)
+{
+    int allocated;
+
+    int num_blocks = num * sufs_get_numblocks(inode->i_blk_type);
+
+    allocated = sufs_new_blocks(sb, blocknr, num_blocks, zero, curr_cpu,
+                    inode->nsocket);
+
+    inode->nsocket = sufs_get_nsocket(sb, inode);
+
+    return allocated;
+}
+
+/*
+ * Allocate index blocks; blocks to hold the indexing data of a file.
+ * The offset for the allocated block comes back in
+ * blocknr.  Return the number of blocks allocated.
+ */
+static int sufs_do_new_index_blocks(struct super_block *sb,
+                    struct sufs_inode *inode,
+                    unsigned long *blocknr, unsigned int num,
+                    int zero, int curr_cpu)
+{
+    int allocated, node;
+
+    /*
+   * This is one policy, use the pm_node of the curr_cpu. The other policy
+   * may be record the numa of the cpu that creates the inode and just use
+   * that
+   */
+
+    node = cpu_to_node(curr_cpu);
+
+    allocated = sufs_new_blocks(sb, blocknr, num, zero, curr_cpu, node);
+
+    return allocated;
+}
+
+
+/*
+ * allocate a data block for inode and return it's absolute blocknr.
+ * Zeroes out the block if zero set. Increments inode->i_blocks.
+ */
+int sufs_new_data_blocks(struct sufs_super_block * sb, struct sufs_inode *pi,
+             unsigned long *blocknr, int zero)
+{
+    unsigned int data_bits = blk_type_to_shift_pmfs[pi->i_blk_type];
+
+    int allocated = sufs_do_new_data_blocks(sb, pi, blocknr, 1, zero,
+                        smp_processor_id());
+
+    if (allocated > 0) {
+        sufs_memunlock_inode(sb, pi);
+        le64_add_cpu(&pi->i_blocks,
+                 (1 << (data_bits - sb->s_blocksize_bits)));
+        sufs_memlock_inode(sb, pi);
+    }
+
+    return allocated > 0 ? 0 : -1;
+}
+
+int sufs_new_index_blocks(struct sufs_super_block * sb,
+        struct sufs_inode *inode, unsigned long *blocknr, int zero)
+{
+    int allocated = sufs_do_new_index_blocks(sb, inode, blocknr, 1, zero,
+                         smp_processor_id());
+
+    return allocated > 0 ? 0 : -1;
+}
+
+
+#endif

@@ -6,5 +6,3 @@
 *.cmd
 Module.symvers
 modules.order
-built-in.a
-

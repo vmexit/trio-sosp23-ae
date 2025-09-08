@@ -20,7 +20,7 @@ int main(int argc, char * argv[])
     }
 
     /* ioctl returns an integer and overflows our return value */
-    if ((ret = ioctl(fd, SUFS_CMD_INIT)) == -1)
+    if ((ret = ioctl(fd, SUFS_CMD_DEBUG_INIT)) == -1)
     {
         perror("ioctl init");
         exit(1);
