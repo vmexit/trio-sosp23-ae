@@ -672,13 +672,13 @@ long sufs_do_real_unmap_file(struct sufs_super_block *sb,
             unsigned long flags = 0;
 
             local_irq_save(flags);
-            sufs_spin_lock(&(sufs_kfs_rename_lease->lock));
+            sufs_spin_lock(&(sufs_kfs_rename_lease.lock));
 
-            if (sufs_kfs_rename_lease->owner[0] == tgid) {
+            if (sufs_kfs_rename_lease.owner[0] == tgid) {
                 ret = SUFS_CHECKER_PASS_RET_CODE;
             }
 
-            sufs_spin_unlock(&(sufs_kfs_rename_lease->lock));
+            sufs_spin_unlock(&(sufs_kfs_rename_lease.lock));
             local_irq_restore(flags);
         }
 
@@ -708,14 +708,14 @@ long sufs_do_real_unmap_file(struct sufs_super_block *sb,
                 if (likely(sufs_is_norm_fidex(idx)))
                 {
                     struct sufs_dir_entry *dir = (struct sufs_dir_entry *)
-                        sufs_kfs_offset_to_virt_addr(offset);
+                        sufs_kfs_offset_to_virt_addr(idx->offset);
 
                     while (dir->name_len != 0)
                     {
                         unsigned short rec_len = dir->rec_len;
 
                         if (dir->ino_num != SUFS_INODE_TOMBSTONE) {
-                            struct sufs_shadow_inode *d_si = get_shadow_inode(dir->ino_num);
+                            struct sufs_shadow_inode *d_si = sufs_find_sinode(dir->ino_num);
                             if (d_si->parent != ino) {
                                 // This inode is no longer child of this inode. Fix it.
                                 dir->ino_num = SUFS_INODE_TOMBSTONE;
@@ -1019,13 +1019,13 @@ static long sufs_do_commit(struct sufs_super_block *sb, int ino, char file_type,
         unsigned long flags = 0;
 
         local_irq_save(flags);
-        sufs_spin_lock(&(sufs_kfs_rename_lease->lock));
+        sufs_spin_lock(&(sufs_kfs_rename_lease.lock));
         
-        if (sufs_kfs_rename_lease->owner[0] == tgid) {
+        if (sufs_kfs_rename_lease.owner[0] == tgid) {
             ret = SUFS_CHECKER_PASS_RET_CODE;
         }
 
-        sufs_spin_unlock(&(sufs_kfs_rename_lease->lock));
+        sufs_spin_unlock(&(sufs_kfs_rename_lease.lock));
         local_irq_restore(flags);
     }
 
