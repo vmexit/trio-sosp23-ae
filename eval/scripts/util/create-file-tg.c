@@ -4,12 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libutil.h"
-#include "../include/config.h"
+#include "../../../arckfsplus/include/config.h"
 
 #define MAX_PATH 4096
-
-int sufs_libfs_commit_by_path(char *path);
 
 static inline long long sufs_libfs_rdtsc(void)
 {
@@ -27,7 +24,6 @@ int main(int argc, char *argv[])
 
     if (argc != 3) 
     {
-        die("Usage: ./create_files <directory> <repeat>\n");
     }
 
     dir = argv[1];
@@ -42,18 +38,15 @@ int main(int argc, char *argv[])
         int fd = open(path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
         if (fd < 0) 
         {
-            die("open");
             return 1;
         }
 
         close(fd);
 
-        sufs_libfs_commit_by_path(dir);
-
         end =  sufs_libfs_rdtsc();
 
         if(i == 10 || i == 100) {
-            printf("creat-%d: %lf us\n", i, (double)(end-begin) / SUFS_CPU_MHZ);
+            printf("creat-%d: %lf us\n", i, (double)(end-begin) / 3000);
         }
     }
 

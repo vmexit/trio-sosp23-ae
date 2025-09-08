@@ -3,15 +3,15 @@
 SIZE=${1:-1073741824}
 
 #echo "Creating files"
-taskset -c 1-1 ./create /sufs/share.txt $SIZE 
+taskset -c 1-1 ./create /mnt/pmem0/share.txt $SIZE 
 
 start_time=$(date +%s%N)
 
 #echo "Writing to files: P1"
-taskset -c 1-1 ./write-file /sufs/share.txt "b" 5000000 $SIZE 0 &
+taskset -c 1-1 ./write-file /mnt/pmem0/share.txt "b" 5000000 $SIZE 0 &
 
 #echo "Writing to files: P2"
-taskset -c 2-2 ./write-file /sufs/share.txt "c" 5000000 $SIZE 4096 &
+taskset -c 2-2 ./write-file /mnt/pmem0/share.txt "c" 5000000 $SIZE 4096 &
 
 wait
 

@@ -17,7 +17,6 @@ int main(int argc, char *argv[])
 
     if (argc != 3) 
     {
-        die("Usage: %s <filename> <size_in_bytes>\n", argv[0]);
     }
 
     filename = argv[1];
@@ -25,20 +24,15 @@ int main(int argc, char *argv[])
 
     if (size <= 0) 
     {
-        die("Error: size must be a positive integer\n");
     }
-
     fd = open(filename, O_WRONLY | O_CREAT, 0644);
-
     if (fd == -1) 
     {
-        die("open error: %s\n", filename);
     }
 
     buf = malloc(size);
     if (buf == NULL) 
     {
-        die("malloc error: %s\n", strerror(errno));
     }
     
     for (i = 0; i < size; i++)
@@ -48,7 +42,6 @@ int main(int argc, char *argv[])
 
     if (write(fd, buf, size) != size)
     {
-        die("write error: %s\n", strerror(errno));
     }
 
     close(fd);

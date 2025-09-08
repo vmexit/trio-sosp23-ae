@@ -1,17 +1,16 @@
 #!/bin/bash
+# SIZE=8192
 # SIZE=2097152
+# SIZE=1073741824
 SIZE=${1:-1073741824}
 
-#echo "Creating files"
+echo "Creating files"
 taskset -c 1-1 ./create /sufs/share.txt $SIZE 
 
 start_time=$(date +%s%N)
 
-#echo "Writing to files: P1"
-taskset -c 1-1 ./write-file /sufs/share.txt "b" 5000000 $SIZE 0 &
-
-#echo "Writing to files: P2"
-taskset -c 2-2 ./write-file /sufs/share.txt "c" 5000000 $SIZE 4096 &
+echo "Writing to files: P1 T1 T2"
+taskset -c 1-23 ./write-file-tg /sufs/share.txt "a" 5000000 $SIZE 0 &
 
 wait
 
@@ -29,5 +28,5 @@ gib_per_s=$(echo "scale=3; ($total_bytes / $elapsed_s) / 1073741824" | bc -l)
 echo "Elapsed time: $elapsed_s seconds"
 echo "Throughput: $gib_per_s GiB/s"
 
+echo
 
-echo 

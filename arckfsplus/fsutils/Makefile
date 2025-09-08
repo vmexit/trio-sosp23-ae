@@ -1,6 +1,6 @@
-CFLAGS = -O2 -lurcu-qsbr
+CFLAGS = -O0 -g -lurcu-qsbr
 
-TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs create create-file write-file webproxy varmail
+TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs create create-file create-file-tg write-file write-file-tg webproxy varmail
 
 LDFLAGS = -L../libfs -l:sufs.so -Wl,-R -Wl,../libfs/ -lurcu-qsbr -lpthread
 

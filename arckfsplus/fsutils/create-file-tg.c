@@ -9,8 +9,6 @@
 
 #define MAX_PATH 4096
 
-int sufs_libfs_commit_by_path(char *path);
-
 static inline long long sufs_libfs_rdtsc(void)
 {
     unsigned long hi, lo;
@@ -47,8 +45,6 @@ int main(int argc, char *argv[])
         }
 
         close(fd);
-
-        sufs_libfs_commit_by_path(dir);
 
         end =  sufs_libfs_rdtsc();
 
