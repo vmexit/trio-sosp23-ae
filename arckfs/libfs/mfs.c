@@ -1084,17 +1084,6 @@ int sufs_libfs_sys_unmap_by_path(struct sufs_libfs_proc *proc, char * path)
         return 0;
     }
 
-    if (m->index_start == NULL)
-    {
-        index_offset = 0;
-    }
-    else
-    {
-        index_offset = sufs_libfs_virt_addr_to_offset((unsigned long)
-                m->index_start);
-    }
-
-    return sufs_libfs_cmd_unmap_file(m->ino_num, 
-        m->shadow_inode.file_type, index_offset);
+    return sufs_libfs_unmap_file_helper(m, 1);
 }
 
