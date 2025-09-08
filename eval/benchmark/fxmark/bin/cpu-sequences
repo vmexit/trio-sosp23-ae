@@ -2,6 +2,20 @@
 
 import errno
 import sys
+import subprocess
+
+def get_core_per_chip_from_lscpu():
+    try:
+        output = subprocess.check_output(['lscpu']).decode()
+        for line in output.splitlines():
+            if "Core(s) per socket:" in line:
+                return int(line.split(":")[1].strip())
+    except Exception as e:
+        print("Error running lscpu:", e)
+        return None
+
+
+
 
 # Get /proc/cpuinfo 
 #  processor   = logical processor number
@@ -23,6 +37,7 @@ for cpu in cpuinfo:
     key =  physical_id + ":" + core_id
     pc_map.setdefault(key, []).append(cpu)
     physical_id_set.add(int(physical_id))
+
     core_id_set.add(int(core_id))
     cache_per_core = cpu["cache size"].split()[0]
 
@@ -33,7 +48,7 @@ core_ids = list(core_id_set)
 physical_ids.sort()
 core_ids.sort()
 physical_chips = len(physical_ids)
-core_per_chip  = len(core_ids)
+core_per_chip = get_core_per_chip_from_lscpu()
 smt_level      = len(pc_map[str(list(physical_ids)[0]) + ":" + str(list(core_ids)[0])])
 
 # Generate sequential order 
@@ -42,7 +57,8 @@ def seq(cpuinfo):
         for physical_id in physical_ids:
             for core_id in core_ids:
                 key =  str(physical_id) + ":" + str(core_id)
-                yield pc_map[key][smt]
+                if key in pc_map:
+                    yield pc_map[key][smt]
 
 # Generate round robin order 
 def rr(cpuinfo):
@@ -50,7 +66,8 @@ def rr(cpuinfo):
         for core_id in core_ids:
             for physical_id in physical_ids:
                 key =  str(physical_id) + ":" + str(core_id)
-                yield pc_map[key][smt]
+                if key in pc_map:
+                    yield pc_map[key][smt]
 
 print "model name     : %s" % model_name
 print "physical chips : %s" % physical_chips

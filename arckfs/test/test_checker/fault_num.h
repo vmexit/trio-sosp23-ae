@@ -1,0 +1,34 @@
+#ifndef SUFS_CHECKER_FAULT_NUM_H_
+#define SUFS_CHECKER_FAULT_NUM_H_
+
+       
+#define FAULT_NUM_NAME_LEN          0
+#define FAULT_NUM_REC_LEN           1
+#define FAULT_NUM_INV_NAME          2
+#define FAULT_NUM_INODE_REP         3
+#define FAULT_NUM_INODE_OUT         4
+#define FAULT_NUM_SAME_NAME         5
+#define FAULT_NUM_FILE_TYPE         6
+#define FAULT_NUM_FILE_MODE         7
+#define FAULT_NUM_FILE_UID          8
+#define FAULT_NUM_FILE_GID          9
+#define FAULT_NUM_FILE_ATIME       10
+#define FAULT_NUM_FILE_CTIME       11
+#define FAULT_NUM_FILE_MTIME       12
+#define FAULT_NUM_IDX_PAGE_REP     13
+#define FAULT_NUM_IDX_PAGE_OUT     14
+#define FAULT_NUM_DATA_PAGE_REP    15
+#define FAULT_NUM_DATA_PAGE_OUT    16
+#define FAULT_NUM_DIR_DISCONNECT   17
+#define FAULT_NUM_DIR_DISCONNECTS2 18
+#define FAULT_NUM_DIR_DISCONNECTS3 19 
+
+#define FAULT_NUM_MIN FAULT_NUM_NAME_LEN
+#define FAULT_NUM_MAX FAULT_NUM_DIR_DISCONNECTS3
+
+#define FAULT_NUM_NAME_FAULT_SLASH   0
+#define FAULT_NUM_NAME_FAULT_DOT     1  
+#define FAULT_NUM_NAME_FAULT_DOT_DOT 2
+#define FAULT_NUM_NAME_FAULT_NULL    3
+
+#endif 

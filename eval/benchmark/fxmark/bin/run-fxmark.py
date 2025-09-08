@@ -772,12 +772,8 @@ class Runner(object):
                         "pm_nr=" + str(self.DELEGATION_SOCKETS)])
 
         p = self.exec_cmd(cmd)
-        if p.returncode != 0:
-            return False
 
         p = self.exec_cmd("sudo chmod 777 " + dev_path)
-        if p.returncode != 0:
-            return False
 
         p = self.exec_cmd("sudo " + self.SUFS_INIT_BIN)
         if p.returncode != 0:
@@ -879,6 +875,9 @@ class Runner(object):
                                 "sufs_alloc_numa=%s" % node,
                                 "sufs_init_alloc_size=%s" % "65536",
                                 "sufs_alloc_pin_cpu=%s" % 0])
+                else:
+                    fs_env = ' '.join(["sufs_alloc_cpu=%s" % ncore])
+            
         elif fs == "strata":
             if bench == "fxmark":
                     fs_env = ("LD_PRELOAD=%s" % 
@@ -1030,6 +1029,7 @@ class Runner(object):
                 "--delegation_sockets", str(self.DELEGATION_SOCKETS),
                 "--delegate", str(int(self.delegate == True))])
             
+        print(cmd)
         start = time.time()
         p = self.exec_cmd(cmd, self.redirect)
         end = time.time()
