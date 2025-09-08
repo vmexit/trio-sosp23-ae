@@ -15,12 +15,6 @@ $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
     --rcore='False' --delegate='False' --confirm='True' \
     --directory_name="$FM_LOG_DIR" --log_name="ext4-meta.log" --duration=10
 
-$FXMARK_BIN_PATH/run-fxmark.py --media='^dm-stripe$' --fs='^ext4$' \
-    --workload='^DWTL$|^MRPL$|^MRPM$|^MRPH$|^MRDL$|^MRDM$|^MWCL$|^MWCM$|^MWUL$|^MWUM$|^MWRL$|^MWRM$' \
-    --ncore="^1$|^2$|^4$|^6$|^8$|^10$|^12$|^16$|^20$|^24$|^28$|^32$|^36$|^40$|^44$|^48$" --iotype='bufferedio' --dthread='0' --dsocket="$MAX_SOCKETS" \
-    --rcore='False' --delegate='False' --confirm='True' \
-    --directory_name="$FM_LOG_DIR" --log_name="ext-raid0-meta.log" --duration=10
-
 $FXMARK_BIN_PATH/run-fxmark.py --media='pmem-local' \
     --fs='^nova$' \
     --workload='^DWTL$|^MRPL$|^MRPM$|^MRPH$|^MRDL$|^MRDM$|^MWCL$|^MWCM$|^MWUL$|^MWUM$|^MWRL$|^MWRM$' \

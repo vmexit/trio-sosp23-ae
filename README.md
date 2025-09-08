@@ -106,6 +106,8 @@ Reboot the machine to the installed 5.13.13 kernel.
 
 ### 3. Install and insmod file systems 
 
+If 5.13.13 kernel is already installed, start from this point.
+
 Set the kernel up for building external modules
 
 ```
@@ -172,7 +174,9 @@ $ ./compile.sh
 
 # Running Experiments:
 
-Main scripts are under ```eval/scripts/```
+Main scripts are under ```eval/scripts/```.
+
+Please run all scripts with **sudo** privileges.
 
 ```
 eval/scripts
