@@ -209,9 +209,9 @@ int sufs_libfs_commit_mnode_cascade(struct sufs_libfs_mnode *m)
     // Try to commit current mnode.
     int ret = sufs_libfs_cmd_commit(m->ino_num, m->type, index_offset);
 
-    if (ret != -ELOOP) return ret;
+    if (ret == 0 || errno != ELOOP) return ret;
 
-    // If ret is `-ELOOP`, then the commit is failed because the inode is newly created.
+    // If errno is `ELOOP`, then the commit is failed because the inode is newly created.
     // Try to commit its parent first, and if succeed, re-commit, and return.
     ret = sufs_libfs_commit_mnode_cascade(sufs_libfs_mnode_array[m->parent_mnum]);
         
