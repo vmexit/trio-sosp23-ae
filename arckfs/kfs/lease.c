@@ -339,6 +339,8 @@ int sufs_kfs_acquire_rename_lease(struct sufs_kfs_lease *l)
     int ret = 0;
     unsigned long flags = 0;
 
+    int tgid = sufs_kfs_pid_to_tgid(current->tgid, 0);
+
     local_irq_save(flags);
     sufs_spin_lock(&(l->lock));
 
@@ -350,6 +352,7 @@ int sufs_kfs_acquire_rename_lease(struct sufs_kfs_lease *l)
 
     l->state = SUFS_KFS_WRITE_OWNED;
     l->owner_cnt = 1;
+    l->owner[0] = tgid;
     l->lease_tsc[0] = 
         sufs_kfs_rdtsc() + SUFS_LEASE_CYCLES;
 
@@ -364,16 +367,25 @@ int sufs_kfs_release_rename_lease(struct sufs_kfs_lease *l)
     unsigned long flags;
     int ret = 0;
 
+    int tgid = sufs_kfs_pid_to_tgid(current->tgid, 0);
+
     local_irq_save(flags);
     sufs_spin_lock(&(l->lock));
 
     if (l->state == SUFS_KFS_WRITE_OWNED)
     {
+        if (l->owner[0] != tgid) {
+            // If someone tries to release un-owned lease, reject it.
+            ret = -1;
+            goto out;
+        }
         l->state = SUFS_KFS_UNOWNED;
         l->owner_cnt = 0;
+        l->owner[0] = 0;
         ret = 0;
     }
 
+out:
     sufs_spin_unlock(&(l->lock));
     local_irq_restore(flags);
 
