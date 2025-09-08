@@ -1,8 +1,8 @@
-CFLAGS = -O0 -g -lurcu-qsbr
+CFLAGS = -O2 -lurcu-qsbr
 
-TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs create create-file write-file
+TARGET = cat cp mkdir mv rm ls echof dummy ftruncate init touch mkdir-sufs ls-sufs create create-file write-file webproxy varmail
 
-LDFLAGS = -L../libfs -l:sufs.so -Wl,-R -Wl,../libfs/ -lurcu-qsbr
+LDFLAGS = -L../libfs -l:sufs.so -Wl,-R -Wl,../libfs/ -lurcu-qsbr -lpthread
 
 .PHONY: default
 default: $(TARGET)
