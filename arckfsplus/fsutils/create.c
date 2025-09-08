@@ -5,7 +5,7 @@
 #include <string.h>
 #include <errno.h>
 
-// #include "libutil.h"
+#include "libutil.h"
 
 int main(int argc, char *argv[]) 
 {

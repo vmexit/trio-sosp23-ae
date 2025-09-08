@@ -1,4 +1,6 @@
-!/bin/bash
+#!/bin/bash
+
+sudo ndctl create-namespace -f -e namespace0.0 --mode="devdax"
 
 cd ../..
 

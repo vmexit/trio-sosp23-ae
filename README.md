@@ -188,15 +188,25 @@ eval/scripts
 |---- parse.sh                  (parse and output the results to directory: eval/data)
 ```
 
+Run experiments.
+``` 
+$ sudo ./single-thread.sh
+$ sudo ./fxmark.sh
+$ sudo ./filebench-shared.sh
+$ sudo ./sharing-cost.sh
+```
+
 **1. Hardware setup**: 
 * Please disable hyperthreading in the BIOS to avoid issues due to CPU pinning before running experiments. 
 
 **2. How to find a result**
 
 - `single-thread.sh`: run `eval/fig/fig3.py` to draw a figure (raw data are in `eval/data/sg_meta`)
-- `fxmark.sh`: run `eval/fig/fig4.py` to draw a figure. (raw data are in `eval/data/fxmark`) 
+- `fxmark.sh`: run `eval/fig/fig4.py` to draw a figure. (raw data are in `eval/data/fxmark`)
 - `filebench-shared.sh`: check csv files in `eval/data/filebench-shared`.
-- `sharing-cost.sh`: check the logs in `eval/data/sharing-cost`
+  - Expected result: ArckFS+ perform comparable with ArckFS.
+- `sharing-cost.sh`: check the logs in `eval/data/sharing-cost`. 
+  - Expected result: tgroup results are better than without tgroup, as described in Section 5.4 of the paper.
 
 # Known issues 
 

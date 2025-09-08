@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ $EUID -ne 0 ]]; then
+    echo "Error: This script must be run with sudo/root privileges." >&2
+    exit 1
+fi
+
 source common.sh
 source test.sh
 source fs.sh

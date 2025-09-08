@@ -2,7 +2,7 @@
 
 RESULT_FILE="throughput_results.txt"
 LOG_FILE="benchmark.log"
-RUNS=10  # 전체 반복 횟수
+RUNS=1  # 전체 반복 횟수
 
 # 시작할 때 한 번만 초기화 (같은 스크립트 실행 내에서 누적)
 : > "$RESULT_FILE"

@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# sudo ndctl create-namespace -f -e namespace0.0 --mode="fsdax"
+if [[ $EUID -ne 0 ]]; then
+    echo "Error: This script must be run with sudo/root privileges." >&2
+    exit 1
+fi
+
+sudo ndctl create-namespace -f -e namespace0.0 --mode="fsdax"
 
 mkdir -p ../../eval/data/sharing-cost
 mkdir -p /mnt/pmem0
