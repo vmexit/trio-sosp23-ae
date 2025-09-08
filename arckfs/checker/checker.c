@@ -394,7 +394,7 @@ static bool check_dir(int ino_num, unsigned long index_offset, int tgid,
                     
                     struct sufs_shadow_inode *d_si = get_shadow_inode(d->ino_num);
 
-                    if (d_si->parent != ino_num) {
+                    if (d_si->parent != ino_num && d_si->file_type != SUFS_FILE_TYPE_NONE) {
                         // In this case, LibFS renamed a file (d->ino_num) from old parent (d_si->parent) to new parent (ino_num).
                         
                         // The old parent (d_si->parent) must be the owned one because, after verification succeeds, 
